@@ -25,15 +25,16 @@ arena and Credits presentation; the exact 16-fighter resource mapping; all
 three arena backdrops; embedded VOC music; keyboard and XInput gamepad
 controls; gamepad assignment/dead-zone/vibration options; health and super
 state using the original 186/154 ranges; animated fighter damage frames; fighter
-projectile banks and primary damage values recovered from the original
-constructor/type switches; fullscreen; and the context-sensitive secret
-shortcut. The exact original keyboard layout (three attacks, Turbo and Super),
-the original HUD/name resources, and the 59-stage ROUND/FIGHT presentation are
-also active. Presentation uses a persistent scaled backbuffer with a single
-final window copy, eliminating the live black clear that caused flicker. The
-gameplay/class-method audit is still being used to replace provisional movement
-timing, character combo transitions, and secondary status-effect behavior before
-a preservation release is declared 1:1 complete.
+projectile banks and all 49 constructor-defined components recovered from the
+original type switch; fullscreen; and the context-sensitive secret shortcut.
+The exact original keyboard layout (three attacks, Turbo and Super), all 59
+recovered character move/fatality recipes, the original HUD/name resources, the
+59-stage ROUND/FIGHT presentation, two-round match flow, and the 28-stage
+FINISH HIM/HER sequence are also active. Presentation uses a persistent scaled
+backbuffer with a single final window copy, eliminating the live black clear
+that caused flicker. The gameplay/class-method audit is still being used to
+replace provisional movement timing and the most specialized secondary
+status-effect behavior before a preservation release is declared 1:1 complete.
 
 ## Reproducible Windows build
 
@@ -45,6 +46,7 @@ Studio x64 developer shell:
 cmake -S . -B build-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-msvc --config Release
 python tools/verify_embedded_resources.py analysis/extracted/manifest.json "build-msvc/bin/Blood Pong.exe"
+python tools/check_presentation_stability.py "build-msvc/bin/Blood Pong.exe"
 ```
 
 The final executable imports only standard Windows system libraries

@@ -28,6 +28,8 @@ constexpr int kMaximumSuper = 0x9A;
 constexpr COLORREF kTransparent = RGB(0, 0, 0);
 
 enum class Screen { title, credits, characterSelect, versusKode, match, cheatMenu, configuration };
+enum class MatchPhase { playing, betweenRounds, finishPrompt, matchResult };
+enum class CombatButton : std::uint8_t { attack1, attack2, attack3, turbo, super };
 
 struct BitmapAsset {
     HBITMAP handle{};
@@ -55,22 +57,40 @@ struct SoundAsset {
 
 struct Projectile {
     bool active{};
+    bool secondaryPhase{};
+    bool hasHit{};
     int owner{};
     float x{};
     float y{};
     float velocityX{};
     float velocityY{};
     int frame{};
+    int age{};
+    int lifetime{};
     int damage{};
     int originalType{};
+    int variant{};
+    int mode{};
 };
 
-struct AttackDefinition {
+struct ProjectileVisual {
     int originalType{};
     int resourceType{};
     int firstResourceId{};
     int frameCount{};
+};
+
+struct ComponentDefinition {
+    int originalType{};
+    int variant{};
+    int delay{};
     int damage{};
+};
+
+struct ComboRecipe {
+    std::array<CombatButton, 5> buttons{};
+    int length{};
+    int component{};
 };
 
 using XInputGetStateFunction = DWORD(WINAPI*)(DWORD, XINPUT_STATE*);
@@ -99,7 +119,7 @@ struct App {
     std::array<BitmapAsset, 17> portraits{};
     std::array<SpriteAsset, 16> standingPaddles{};
     std::array<std::array<SpriteAsset, 24>, 16> paddleFrames{};
-    std::array<std::vector<SpriteAsset>, 16> projectileFrames{};
+    std::array<std::vector<SpriteAsset>, 25> projectileTypeFrames{};
     std::array<SpriteAsset, 16> fighterNameSprites{};
     SpriteAsset ballSprite{};
     SpriteAsset roundWinMarker{};
@@ -109,6 +129,9 @@ struct App {
     std::array<SpriteAsset, 18> roundFrames{};
     std::array<std::array<SpriteAsset, 18>, 3> roundNumberFrames{};
     std::array<SpriteAsset, 15> fightFrames{};
+    std::array<SpriteAsset, 14> finishHimFrames{};
+    std::array<SpriteAsset, 14> finishHerFrames{};
+    SpriteAsset fatalitySprite{};
     SoundAsset titleMusic{};
     SoundAsset matchMusic{};
     std::array<std::uint32_t, 256> palette{};
@@ -147,11 +170,19 @@ struct App {
     int roundIntroStage{};
     int roundIntroDelay{};
     bool roundIntroActive{};
+    MatchPhase matchPhase{MatchPhase::playing};
+    int matchPhaseTicks{};
+    int roundWinner{-1};
+    bool fatalityPerformed{};
     std::array<int, 2> health{kMaximumHealth, kMaximumHealth};
     std::array<int, 2> super{};
     std::array<int, 2> animationFrame{};
     std::array<int, 2> animationTicks{};
     std::array<int, 2> attackCooldown{};
+    std::array<std::array<CombatButton, 5>, 2> comboHistory{};
+    std::array<int, 2> comboHistorySize{};
+    std::array<int, 2> comboTimeout{};
+    std::array<int, 2> frozenTicks{};
     std::array<Projectile, 8> projectiles{};
     std::uint64_t frameCounter{};
     bool fullscreen{};
@@ -171,26 +202,82 @@ constexpr std::array<int, 16> kCharacterResourceTypes{
     2017, 2006, 2005, 2014, 2016, 2010, 2011, 2015,
     2018, 2000, 2012, 2002, 2013, 2008, 2020, 2009};
 
-// The first literal projectile initialized by each fighter constructor. The type
-// switch at 0x0041ACB5 maps those types to these exact embedded art banks; type 9
-// deliberately reuses the original ball sprite rather than a type-2022 effect.
-constexpr std::array<AttackDefinition, 16> kCharacterPrimaryAttacks{{
-    {1, 2022, 300, 2, 10},       // Fung Shwei
-    {2, 2022, 700, 6, 30},       // Lo Than
-    {3, 2022, 1300, 6, 30},      // Jewel
-    {5, 2022, 180, 4, 30},       // Raptor
-    {6, 2022, 128, 6, 0},        // So Frio (status effect; no direct damage)
-    {9, 2004, 500, 1, 30},       // Nai Palm (extra ball)
-    {10, 2022, 1500, 4, 20},     // One Eye
-    {12, 2022, 1200, 7, 30},     // Raider
-    {13, 2022, 200, 6, 30},      // Show Lin
-    {24, 2022, 500, 3, 15},      // Dawg Cau
-    {17, 2022, 170, 1, 30},      // Omoh
-    {18, 2022, 400, 3, 30},      // Carmack
-    {19, 2022, 1550, 5, 20},     // Pain
-    {21, 2022, 350, 5, 30},      // Lo Pan
-    {15, 2022, 600, 3, 30},      // Mai Lai
-    {22, 2022, 260, 4, 20},      // Baka
+// The original finish-prompt initializer at 0x004143D9 selects FINISH HER for
+// fighter numbers 3, 10, and 16, and FINISH HIM for every other fighter.
+constexpr std::array<bool, 16> kUsesFinishHer{
+    false, false, true, false, false, false, false, false,
+    false, true, false, false, false, false, false, true};
+
+// Exact visual banks selected by the original 25-way type switch at 0x0041ACB5.
+constexpr std::array<ProjectileVisual, 25> kProjectileVisuals{{
+    {0, 0, 0, 0},       {1, 2022, 300, 2},  {2, 2022, 700, 6},
+    {3, 2022, 1300, 6}, {4, 2022, 160, 7},  {5, 2022, 180, 4},
+    {6, 2022, 128, 6},  {7, 2022, 150, 2},  {8, 0, 0, 0},
+    {9, 2004, 500, 1},  {10, 2022, 1500, 4},{11, 0, 0, 0},
+    {12, 2022, 1200, 7},{13, 2022, 200, 6}, {14, 2022, 1000, 15},
+    {15, 2022, 600, 3}, {16, 2022, 210, 6}, {17, 2022, 170, 1},
+    {18, 2022, 400, 3}, {19, 2022, 1550, 5},{20, 2022, 1600, 1},
+    {21, 2022, 350, 5}, {22, 2022, 260, 4}, {23, 2022, 250, 4},
+    {24, 2022, 500, 3},
+}};
+
+// Literal constructor arguments passed to 0x0041AC54. Entries are addressed by
+// the one-based component numbers emitted by each fighter's combo recognizer.
+constexpr std::array<std::array<ComponentDefinition, 4>, 16> kComponents{{
+    {{{1,1,0,10},{0,0,0,0},{0,0,0,0},{0,0,0,0}}},
+    {{{2,1,0,30},{2,1,15,30},{2,1,16,30},{0,0,0,0}}},
+    {{{3,5,0,30},{3,5,14,30},{3,5,12,30},{3,5,13,30}}},
+    {{{5,1,0,30},{4,4,0,0},{4,4,11,0},{0,0,0,0}}},
+    {{{6,2,0,0},{7,2,0,0},{8,2,0,0},{0,0,0,0}}},
+    {{{9,10,6,30},{9,10,7,30},{9,10,8,30},{9,10,9,30}}},
+    {{{10,1,0,20},{11,0,0,0},{0,0,0,0},{0,0,0,0}}},
+    {{{12,4,0,30},{12,6,0,30},{0,0,0,0},{0,0,0,0}}},
+    {{{13,1,0,30},{13,1,0,15},{13,1,0,10},{14,7,0,20}}},
+    {{{24,12,25,15},{24,12,26,15},{14,7,0,20},{0,0,0,0}}},
+    {{{17,8,0,30},{17,8,22,30},{16,1,24,30},{0,0,0,0}}},
+    {{{18,5,0,30},{18,5,17,30},{18,5,18,30},{0,0,0,0}}},
+    {{{19,4,0,20},{20,11,0,0},{0,0,0,0},{0,0,0,0}}},
+    {{{21,1,23,30},{21,1,0,30},{0,0,0,0},{0,0,0,0}}},
+    {{{15,9,0,30},{15,9,11,30},{0,0,0,0},{0,0,0,0}}},
+    {{{22,1,0,20},{23,1,0,20},{0,0,0,0},{0,0,0,0}}},
+}};
+
+constexpr CombatButton A1 = CombatButton::attack1;
+constexpr CombatButton A2 = CombatButton::attack2;
+constexpr CombatButton A3 = CombatButton::attack3;
+constexpr CombatButton TU = CombatButton::turbo;
+constexpr CombatButton SU = CombatButton::super;
+constexpr ComboRecipe move(CombatButton a, CombatButton b, CombatButton c,
+                           CombatButton d, CombatButton e, int component) {
+    return {{{a, b, c, d, e}}, 5, component};
+}
+constexpr ComboRecipe fatality() {
+    return {{{SU, SU, TU, TU, TU}}, 4, -1};
+}
+constexpr ComboRecipe noCombo() {
+    return {{{A1, A1, A1, A1, A1}}, 0, 0};
+}
+
+// Shortest accepting paths recovered by emulating each original recognizer with
+// a synthetic fighter object. Every transition retains the original 60-update
+// input window; component numbers are exactly those passed to 0x004081E8.
+constexpr std::array<std::array<ComboRecipe, 4>, 16> kComboRecipes{{
+    {{fatality(), move(A1,A1,A2,A2,TU,1), move(A1,A1,A3,A1,SU,3), move(A2,A3,A2,A1,TU,2)}},
+    {{fatality(), move(A1,A1,A1,A3,TU,3), move(A2,A1,A2,A2,SU,1), move(A3,A1,A1,A3,TU,2)}},
+    {{fatality(), move(A1,A2,A2,A3,SU,2), move(A2,A1,A2,A1,SU,1), move(A3,A2,A1,A1,SU,3)}},
+    {{fatality(), move(A1,A1,A1,A2,SU,2), move(A1,A1,A3,A2,TU,3), move(A3,A3,A2,A2,TU,1)}},
+    {{fatality(), move(A1,A2,A1,A1,SU,1), move(A2,A1,A3,A3,SU,2), move(A3,A3,A1,A1,SU,3)}},
+    {{fatality(), move(A1,A1,A3,A3,TU,3), move(A2,A2,A2,A2,TU,2), move(A3,A1,A3,A1,SU,1)}},
+    {{fatality(), move(A1,A1,A2,A3,TU,3), move(A3,A1,A2,A1,TU,1), move(A3,A3,A2,A2,TU,2)}},
+    {{fatality(), move(A1,A1,A3,A1,TU,2), move(A2,A2,A2,A3,TU,1), move(A3,A3,A2,A1,SU,3)}},
+    {{fatality(), move(A1,A1,A1,A3,SU,3), move(A1,A2,A2,A1,SU,1), move(A3,A3,A2,A3,SU,2)}},
+    {{fatality(), move(A2,A2,A3,A1,SU,2), move(A2,A2,A3,A3,SU,3), move(A3,A2,A1,A1,TU,1)}},
+    {{fatality(), move(A1,A2,A1,A2,SU,1), move(A3,A2,A3,A2,SU,2), noCombo()}},
+    {{fatality(), move(A2,A2,A1,A3,TU,1), move(A3,A2,A3,A1,SU,2), noCombo()}},
+    {{fatality(), move(A1,A2,A3,A2,TU,1), move(A2,A2,A1,A1,TU,2), noCombo()}},
+    {{fatality(), move(A1,A2,A2,A3,SU,1), move(A3,A3,A2,A2,TU,2), noCombo()}},
+    {{fatality(), move(A1,A1,A1,A1,SU,2), move(A2,A1,A1,A2,TU,3), move(A3,A2,A2,A3,SU,1)}},
+    {{fatality(), move(A1,A2,A3,A3,SU,2), move(A3,A2,A2,A2,TU,1), noCombo()}},
 }};
 
 BitmapAsset loadBitmap(HINSTANCE instance, int id) {
@@ -590,11 +677,23 @@ const SpriteAsset& activePaddleSprite(int player) {
 
 const SpriteAsset& activeProjectileSprite(const Projectile& projectile) {
     static const SpriteAsset empty{};
-    const int character = g_app.selectedCharacters[static_cast<std::size_t>(projectile.owner)];
-    const auto& frames = g_app.projectileFrames[character];
+    if (projectile.originalType == 8 || projectile.originalType == 11) {
+        return g_app.standingPaddles[g_app.selectedCharacters[static_cast<std::size_t>(
+            projectile.owner)]];
+    }
+    if (projectile.originalType < 0 || projectile.originalType >=
+        static_cast<int>(g_app.projectileTypeFrames.size())) return empty;
+    const auto& frames = g_app.projectileTypeFrames[static_cast<std::size_t>(
+        projectile.originalType)];
     if (frames.empty()) return empty;
-    const std::size_t index = std::min<std::size_t>(
-        static_cast<std::size_t>(projectile.frame / 3), frames.size() - 1);
+    const int cadence = projectile.originalType == 14 ? 5
+        : (projectile.originalType == 24 ? 6 : 3);
+    std::size_t index = static_cast<std::size_t>(projectile.frame / cadence);
+    if (projectile.originalType == 14) {
+        index = std::min(index, frames.size() - 1);
+    } else {
+        index %= frames.size();
+    }
     return frames[index];
 }
 
@@ -688,6 +787,36 @@ void renderMatch() {
             y = kArtY + 116;
         }
         if (intro) drawSprite(*intro, x, y);
+    }
+
+    if (g_app.matchPhase == MatchPhase::betweenRounds && g_app.roundWinner >= 0) {
+        std::string message(kCharacterNames[static_cast<std::size_t>(
+            g_app.selectedCharacters[static_cast<std::size_t>(g_app.roundWinner)])]);
+        message += " WINS";
+        drawTextLine(message, kArtY + 188, 28, RGB(220, 0, 10), FW_HEAVY, true);
+    } else if (g_app.matchPhase == MatchPhase::finishPrompt && g_app.roundWinner >= 0) {
+        const int loser = 1 - g_app.roundWinner;
+        const int loserCharacter = g_app.selectedCharacters[static_cast<std::size_t>(loser)];
+        const int stage = std::clamp(g_app.matchPhaseTicks / 5, 0, 27);
+        int frame = stage <= 5 ? stage : (stage < 20 ? 5 : stage - 14);
+        frame = std::clamp(frame, 0, 13);
+        const auto& frames = kUsesFinishHer[static_cast<std::size_t>(loserCharacter)]
+            ? g_app.finishHerFrames : g_app.finishHimFrames;
+        const auto& prompt = frames[static_cast<std::size_t>(frame)];
+        drawSprite(prompt, kArtX + 272 - prompt.width / 2,
+                   kArtY + 216 - prompt.height / 2);
+    } else if (g_app.matchPhase == MatchPhase::matchResult && g_app.roundWinner >= 0) {
+        if (g_app.fatalityPerformed) {
+            drawSprite(g_app.fatalitySprite,
+                       kArtX + 272 - g_app.fatalitySprite.width / 2,
+                       kArtY + 230 - g_app.fatalitySprite.height / 2);
+        }
+        std::string message(kCharacterNames[static_cast<std::size_t>(
+            g_app.selectedCharacters[static_cast<std::size_t>(g_app.roundWinner)])]);
+        message += " WINS";
+        drawTextLine(message, kArtY + 145, 28, RGB(220, 0, 10), FW_HEAVY, true);
+        drawTextLine("ENTER TO CONTINUE", kArtY + 350, 13,
+                     RGB(220, 220, 220), FW_NORMAL);
     }
 }
 
@@ -821,24 +950,35 @@ void resetBall(int direction) {
     g_app.ballVelocityY = 2.15f;
 }
 
-void beginMatch() {
+void beginRound(int serveDirection) {
     g_app.player1Y = 189.0f;
     g_app.player2Y = 189.0f;
-    g_app.score = {};
     g_app.health = {kMaximumHealth, kMaximumHealth};
     g_app.turbo = {kMaximumTurbo, kMaximumTurbo};
     g_app.super = {};
-    g_app.roundNumber = 1;
-    g_app.roundIntroStage = 0;
-    g_app.roundIntroDelay = 0;
-    g_app.roundIntroActive = true;
     g_app.animationFrame = {};
     g_app.animationTicks = {};
     g_app.attackCooldown = {};
+    g_app.comboHistorySize = {};
+    g_app.comboTimeout = {};
+    g_app.frozenTicks = {};
     g_app.projectiles = {};
+    g_app.roundIntroStage = 0;
+    g_app.roundIntroDelay = 0;
+    g_app.roundIntroActive = true;
+    g_app.matchPhase = MatchPhase::playing;
+    g_app.matchPhaseTicks = 0;
+    g_app.roundWinner = -1;
+    resetBall(serveDirection);
+}
+
+void beginMatch() {
+    g_app.score = {};
+    g_app.roundNumber = 1;
+    g_app.fatalityPerformed = false;
     g_app.matchStage = static_cast<int>((GetTickCount64() / 17 +
         g_app.selectedCharacters[0] * 3 + g_app.selectedCharacters[1]) % 3);
-    resetBall(1);
+    beginRound(1);
     g_app.screen = Screen::match;
     playMatchMusic();
     invalidate();
@@ -947,6 +1087,7 @@ float gamepadVertical(int pad) {
 }
 
 void damagePlayer(int player, int amount) {
+    if (g_app.matchPhase != MatchPhase::playing || g_app.roundIntroActive) return;
     if (g_app.cheats[static_cast<std::size_t>(player)]) return;
     const int pad = player == 0 ? g_app.player1Pad : g_app.player2Pad;
     if (g_app.vibrationEnabled && g_app.xinputSetState && pad >= 0 && pad < XUSER_MAX_COUNT) {
@@ -958,38 +1099,167 @@ void damagePlayer(int player, int amount) {
     g_app.animationTicks[player] = 48;
     g_app.animationFrame[player] = 0;
     if (g_app.health[player] == 0) {
-        ++g_app.score[1 - player];
-        g_app.health = {kMaximumHealth, kMaximumHealth};
-        g_app.turbo = {kMaximumTurbo, kMaximumTurbo};
-        g_app.super = {};
+        g_app.roundWinner = 1 - player;
+        ++g_app.score[static_cast<std::size_t>(g_app.roundWinner)];
         g_app.projectiles = {};
-        g_app.roundNumber = std::min(3, g_app.score[0] + g_app.score[1] + 1);
-        g_app.roundIntroStage = 0;
-        g_app.roundIntroDelay = 0;
-        g_app.roundIntroActive = true;
-        resetBall(player == 0 ? 1 : -1);
+        g_app.matchPhaseTicks = 0;
+        g_app.matchPhase = g_app.score[static_cast<std::size_t>(g_app.roundWinner)] >= 2
+            ? MatchPhase::finishPrompt : MatchPhase::betweenRounds;
     }
 }
 
-void launchProjectile(int player) {
+void launchComponent(int player, int componentIndex) {
     if (g_app.attackCooldown[player] > 0) return;
-    constexpr int cost = 25;
-    if (!g_app.cheats[2] && g_app.super[player] < cost) return;
     const int character = g_app.selectedCharacters[static_cast<std::size_t>(player)];
-    const auto& attack = kCharacterPrimaryAttacks[static_cast<std::size_t>(character)];
+    if (componentIndex < 1 || componentIndex > 4) return;
+    const auto& component = kComponents[static_cast<std::size_t>(character)]
+                                       [static_cast<std::size_t>(componentIndex - 1)];
+    if (component.originalType == 0) {
+        // Type zero has no independent sprite object in the original. It still
+        // enters the fighter's special animation, so retain that visible state.
+        g_app.animationTicks[player] = 48;
+        g_app.animationFrame[player] = 12;
+        g_app.attackCooldown[player] = 28;
+        return;
+    }
     for (auto& projectile : g_app.projectiles) {
         if (projectile.active) continue;
         projectile.active = true;
+        projectile.secondaryPhase = false;
+        projectile.hasHit = false;
         projectile.owner = player;
-        projectile.x = player == 0 ? 55.0f : 475.0f;
-        projectile.y = (player == 0 ? g_app.player1Y : g_app.player2Y) + 17.0f;
-        projectile.velocityX = player == 0 ? 6.5f : -6.5f;
-        projectile.velocityY = 0.0f;
+        projectile.damage = component.damage;
+        projectile.originalType = component.originalType;
+        projectile.variant = component.variant;
+        projectile.mode = component.delay;
+        projectile.age = 0;
+        projectile.lifetime = 0;
+        const auto& sprite = activeProjectileSprite(projectile);
+        const auto& paddle = g_app.standingPaddles[static_cast<std::size_t>(character)];
+        const float paddleLeft = player == 0 ? 24.0f : 520.0f - paddle.width;
+        const float paddleRight = paddleLeft + paddle.width;
+        projectile.x = player == 0 ? paddleRight : paddleLeft - sprite.width;
+        projectile.y = (player == 0 ? g_app.player1Y : g_app.player2Y) +
+                       (paddle.height - sprite.height) * 0.5f;
+        const float speed = component.delay == 11 ? 5.0f : 9.0f;
+        projectile.velocityX = player == 0 ? speed : -speed;
+        projectile.velocityY = component.delay == 17 ? -3.0f
+            : (component.delay == 18 ? 3.0f : 0.0f);
+        if (component.originalType == 1) {
+            // 0x0041C808 anchors the 516-pixel beam behind the owner and sweeps
+            // it toward the opponent at 14 pixels per update.
+            projectile.x = player == 0 ? paddleRight - sprite.width : paddleLeft;
+            projectile.velocityX = player == 0 ? 14.0f : -14.0f;
+            g_app.super[player] = std::min(kMaximumSuper, g_app.super[player] + 30);
+        } else if (component.originalType == 7) {
+            // 0x0041C5F0 launches this vertically from the owner's upper edge.
+            // After it clears the top, 0x0041C658 relocates variant 1/2/3 over
+            // the far side of the arena and drops it back at nine pixels/tick.
+            projectile.x = paddleLeft - 6.0f;
+            projectile.y = (player == 0 ? g_app.player1Y : g_app.player2Y) +
+                           paddle.height - sprite.height;
+            projectile.velocityX = 0.0f;
+            projectile.velocityY = -9.0f;
+        } else if (component.originalType == 8) {
+            // The ice double is mirrored across the original 544-pixel playfield
+            // and persists for exactly 100 updates (0x0041C4CC/0x0041C57C).
+            projectile.x = 544.0f - paddleRight;
+            projectile.y = player == 0 ? g_app.player1Y : g_app.player2Y;
+            projectile.velocityX = 0.0f;
+            projectile.velocityY = 0.0f;
+            projectile.lifetime = 100;
+        } else if (component.originalType == 9) {
+            // Nai Palm's four modes are the original extra-ball diagonals from
+            // 0x0041D328. Modes 6/8 use 6x6 velocity; 7/9 use 7x5.
+            const bool steep = component.delay == 6 || component.delay == 8;
+            projectile.velocityX = player == 0 ? (steep ? 6.0f : 7.0f)
+                                                : (steep ? -6.0f : -7.0f);
+            projectile.velocityY = (component.delay == 6 || component.delay == 7)
+                ? -static_cast<float>(steep ? 6 : 5)
+                : static_cast<float>(steep ? 6 : 5);
+        } else if (component.originalType == 11) {
+            // One Eye's moving double copies the owner's paddle and travels at
+            // the exact nine-pixel horizontal velocity from 0x0041CFCC.
+            projectile.x = paddleLeft;
+            projectile.y = player == 0 ? g_app.player1Y : g_app.player2Y;
+            projectile.velocityX = player == 0 ? 9.0f : -9.0f;
+            projectile.velocityY = 0.0f;
+        } else if (component.originalType == 14) {
+            // The 60-stage giant effect is bottom-anchored against the far edge
+            // (0x0041CA58) and animates in place rather than flying laterally.
+            projectile.x = player == 0 ? 544.0f - sprite.width : 0.0f;
+            projectile.y = 432.0f - sprite.height;
+            projectile.velocityX = 0.0f;
+            projectile.velocityY = 0.0f;
+            projectile.lifetime = 300;
+        } else if (component.originalType == 17) {
+            // Omoh's lob starts at -8 vertical velocity. Mode 22 is seven
+            // pixels/tick horizontally; its other mode is five (0x0041D1DC).
+            const float speed = component.delay == 22 ? 7.0f : 5.0f;
+            projectile.velocityX = player == 0 ? speed : -speed;
+            projectile.velocityY = -8.0f;
+        } else if (component.originalType == 20) {
+            // Pain's full-height apparition is reflected to the opposite side
+            // and bottom-aligned with its owner by 0x0041D694.
+            projectile.x = 544.0f - paddleRight;
+            projectile.y = (player == 0 ? g_app.player1Y : g_app.player2Y) +
+                           paddle.height - sprite.height;
+            projectile.velocityX = 0.0f;
+            projectile.velocityY = 0.0f;
+            projectile.lifetime = 30;
+        } else if (component.originalType == 24) {
+            // Dawg Cau's falling column starts near the lower boundary, rises
+            // at four pixels/tick and drifts left or right by two.
+            const int seed = static_cast<int>((g_app.frameCounter + player * 29) & 63);
+            projectile.x = player == 0 ? paddleLeft + seed
+                                       : paddleRight - sprite.width - seed;
+            projectile.y = 452.0f - sprite.height;
+            projectile.velocityX = ((g_app.frameCounter >> 2) & 1) ? 2.0f : -2.0f;
+            projectile.velocityY = -4.0f;
+        }
         projectile.frame = 0;
-        projectile.damage = attack.damage;
-        projectile.originalType = attack.originalType;
-        if (!g_app.cheats[2]) g_app.super[player] -= cost;
         g_app.attackCooldown[player] = 28;
+        g_app.animationTicks[player] = 48;
+        g_app.animationFrame[player] = 12;
+        return;
+    }
+}
+
+bool recipeMatches(int player, const ComboRecipe& recipe) {
+    if (recipe.length <= 0 || g_app.comboHistorySize[player] < recipe.length) return false;
+    const int first = g_app.comboHistorySize[player] - recipe.length;
+    for (int index = 0; index < recipe.length; ++index) {
+        if (g_app.comboHistory[player][static_cast<std::size_t>(first + index)] !=
+            recipe.buttons[static_cast<std::size_t>(index)]) return false;
+    }
+    return true;
+}
+
+void processCombatButton(int player, CombatButton button) {
+    auto& size = g_app.comboHistorySize[player];
+    auto& history = g_app.comboHistory[player];
+    if (size == static_cast<int>(history.size())) {
+        std::move(history.begin() + 1, history.end(), history.begin());
+        --size;
+    }
+    history[static_cast<std::size_t>(size++)] = button;
+    g_app.comboTimeout[player] = 60;
+
+    const int character = g_app.selectedCharacters[static_cast<std::size_t>(player)];
+    for (const auto& recipe : kComboRecipes[static_cast<std::size_t>(character)]) {
+        if (!recipeMatches(player, recipe)) continue;
+        size = 0;
+        g_app.comboTimeout[player] = 0;
+        if (recipe.component < 0) {
+            if (g_app.matchPhase == MatchPhase::finishPrompt &&
+                g_app.roundWinner == player && g_app.allContentUnlocked) {
+                g_app.fatalityPerformed = true;
+                g_app.matchPhase = MatchPhase::matchResult;
+                g_app.matchPhaseTicks = 0;
+            }
+        } else if (g_app.matchPhase == MatchPhase::playing && !g_app.roundIntroActive) {
+            launchComponent(player, recipe.component);
+        }
         return;
     }
 }
@@ -997,6 +1267,42 @@ void launchProjectile(int player) {
 bool gamepadButtonPressedForPlayer(int pad, WORD button) {
     return pad >= 0 && pad < XUSER_MAX_COUNT &&
            gamepadButtonPressed(static_cast<std::size_t>(pad), button);
+}
+
+void triggerPaddleAttack(int player, int attack);
+
+bool combatButtonPressed(int player, CombatButton button) {
+    const int pad = player == 0 ? g_app.player1Pad : g_app.player2Pad;
+    if (pad < 0) return false;
+    constexpr std::array<WORD, 5> buttons{
+        XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_A, XINPUT_GAMEPAD_B,
+        XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_Y};
+    return gamepadButtonPressedForPlayer(pad, buttons[static_cast<std::size_t>(button)]);
+}
+
+bool handleKeyboardCombatKey(WPARAM key) {
+    constexpr std::array<std::array<WPARAM, 5>, 2> keys{{
+        {{'1', '2', '3', '5', '4'}},
+        {{'6', '7', '8', '0', '9'}},
+    }};
+    for (int player = 0; player < 2; ++player) {
+        if (player == 1 && g_app.playerCount != 2) continue;
+        for (int input = 0; input < 5; ++input) {
+            if (key != keys[static_cast<std::size_t>(player)][static_cast<std::size_t>(input)]) {
+                continue;
+            }
+            const auto button = static_cast<CombatButton>(input);
+            if (g_app.matchPhase == MatchPhase::playing && !g_app.roundIntroActive) {
+                if (input < 3) triggerPaddleAttack(player, input);
+                processCombatButton(player, button);
+            } else if (g_app.matchPhase == MatchPhase::finishPrompt &&
+                       g_app.roundWinner == player) {
+                processCombatButton(player, button);
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 void triggerPaddleAttack(int player, int attack) {
@@ -1030,23 +1336,106 @@ void updateProjectiles() {
     for (auto& projectile : g_app.projectiles) {
         if (!projectile.active) continue;
         const auto& sprite = activeProjectileSprite(projectile);
+
+        ++projectile.age;
+        if (projectile.originalType == 7 && !projectile.secondaryPhase &&
+            projectile.y + sprite.height < -100.0f) {
+            projectile.secondaryPhase = true;
+            projectile.velocityY = 9.0f;
+            constexpr std::array<float, 3> leftDropX{510.0f, 432.0f, 354.0f};
+            constexpr std::array<float, 3> rightDropX{10.0f, 88.0f, 166.0f};
+            const int variant = std::clamp(projectile.variant, 1, 3) - 1;
+            projectile.x = projectile.owner == 0
+                ? leftDropX[static_cast<std::size_t>(variant)]
+                : rightDropX[static_cast<std::size_t>(variant)];
+        }
+        if (projectile.originalType == 17 && (projectile.age % 4) == 0) {
+            // 0x0041D27C decreases vertical velocity for the first four
+            // gravity steps, then increases it by two on every later step.
+            const int gravityStep = projectile.age / 4;
+            if (gravityStep < 5) projectile.velocityY -= 1.0f;
+            else projectile.velocityY += 2.0f;
+        }
+        if ((projectile.originalType == 2 || projectile.originalType == 3 ||
+             projectile.originalType == 4) && !projectile.secondaryPhase) {
+            const int width = sprite ? sprite.width : 12;
+            const bool enteredOpponentHalf = projectile.owner == 0
+                ? projectile.x + width >= 344.0f : projectile.x <= 200.0f;
+            if (enteredOpponentHalf) {
+                projectile.secondaryPhase = true;
+                // Mode dispatch table at 0x0041BB16. The horizontal offsets
+                // are mirrored in its player-two table at 0x0041BB9F.
+                if (projectile.mode == 12) projectile.velocityY = -4.0f;
+                if (projectile.mode == 13) projectile.velocityY = 4.0f;
+                if (projectile.mode == 15) projectile.x += projectile.owner == 0 ? -5.0f : 5.0f;
+                if (projectile.mode == 16) projectile.x += projectile.owner == 0 ? 6.0f : -6.0f;
+            }
+        }
         projectile.x += projectile.velocityX;
         projectile.y += projectile.velocityY;
         ++projectile.frame;
         const int width = sprite ? sprite.width : 12;
         const int height = sprite ? sprite.height : 12;
-        if (projectile.owner == 0 && projectile.x + width >= 520 - right.width &&
-            projectile.y + height >= g_app.player2Y &&
-            projectile.y <= g_app.player2Y + right.height) {
+
+        if (projectile.originalType == 9 &&
+            (projectile.y < 0.0f || projectile.y + height > 432.0f)) {
+            projectile.y = std::clamp(projectile.y, 0.0f,
+                                      std::max(0.0f, 432.0f - height));
+            projectile.velocityY = -projectile.velocityY;
+        }
+        if (projectile.originalType == 24) {
+            const float minimumX = projectile.owner == 0 ? 10.0f : 282.0f;
+            const float maximumX = projectile.owner == 0 ? 262.0f : 534.0f - width;
+            if (projectile.x < minimumX || projectile.x > maximumX) {
+                projectile.x = std::clamp(projectile.x, minimumX, maximumX);
+                projectile.velocityX = -projectile.velocityX;
+            }
+        }
+
+        const int target = 1 - projectile.owner;
+        const auto& targetSprite = target == 0 ? left : right;
+        const float targetX = target == 0 ? 24.0f : 520.0f - targetSprite.width;
+        const float targetY = target == 0 ? g_app.player1Y : g_app.player2Y;
+        const bool armed = projectile.originalType != 8 || projectile.age >= 20;
+        const bool collides = armed && projectile.x + width >= targetX &&
+                              projectile.x <= targetX + targetSprite.width &&
+                              projectile.y + height >= targetY &&
+                              projectile.y <= targetY + targetSprite.height;
+        if (collides && !projectile.hasHit) {
+            projectile.hasHit = true;
+            if (projectile.originalType == 6 || projectile.originalType == 7 ||
+                projectile.originalType == 8) {
+                // So Frio's zero-damage effects replace the target's behavior
+                // callbacks on contact. Preserve that as the corresponding
+                // temporary frozen-control state rather than treating zero as
+                // a conventional damage projectile.
+                g_app.frozenTicks[static_cast<std::size_t>(target)] = 100;
+            } else if (projectile.originalType == 11) {
+                // The moving double reverses after contact in 0x0041D044 and
+                // retreats through the side from which it was launched.
+                projectile.velocityX = -projectile.velocityX;
+                projectile.secondaryPhase = true;
+            } else if (projectile.originalType == 20) {
+                g_app.frozenTicks[static_cast<std::size_t>(target)] =
+                    std::max(g_app.frozenTicks[static_cast<std::size_t>(target)], 30);
+            } else {
+                damagePlayer(target, projectile.damage);
+                g_app.super[static_cast<std::size_t>(projectile.owner)] =
+                    std::min(kMaximumSuper,
+                             g_app.super[static_cast<std::size_t>(projectile.owner)] + 8);
+            }
+            if (projectile.originalType != 11 && projectile.originalType != 20) {
+                projectile.active = false;
+            }
+        } else if (projectile.lifetime > 0 && projectile.age >= projectile.lifetime) {
             projectile.active = false;
-            damagePlayer(1, projectile.damage);
-            g_app.super[0] = std::min(kMaximumSuper, g_app.super[0] + 8);
-        } else if (projectile.owner == 1 && projectile.x <= 24 + left.width &&
-                   projectile.y + height >= g_app.player1Y &&
-                   projectile.y <= g_app.player1Y + left.height) {
+        } else if (projectile.originalType == 7 && projectile.secondaryPhase &&
+                   projectile.y > 432.0f) {
             projectile.active = false;
-            damagePlayer(0, projectile.damage);
-            g_app.super[1] = std::min(kMaximumSuper, g_app.super[1] + 8);
+        } else if (projectile.originalType == 17 && projectile.y > 432.0f) {
+            projectile.active = false;
+        } else if (projectile.originalType == 24 && projectile.y + height < 0.0f) {
+            projectile.active = false;
         } else if (projectile.x < -width || projectile.x > 544.0f) {
             projectile.active = false;
         }
@@ -1058,10 +1447,46 @@ void updateMatch() {
     ++g_app.frameCounter;
     for (int player = 0; player < 2; ++player) {
         if (g_app.attackCooldown[player] > 0) --g_app.attackCooldown[player];
+        if (g_app.frozenTicks[player] > 0) --g_app.frozenTicks[player];
+        if (g_app.comboTimeout[player] > 0 && --g_app.comboTimeout[player] == 0) {
+            g_app.comboHistorySize[player] = 0;
+        }
         if (g_app.animationTicks[player] > 0) {
             --g_app.animationTicks[player];
             g_app.animationFrame[player] = (48 - g_app.animationTicks[player]) / 2;
         }
+    }
+
+    if (g_app.matchPhase != MatchPhase::playing) {
+        ++g_app.matchPhaseTicks;
+        if (g_app.matchPhase == MatchPhase::betweenRounds) {
+            // The original waits just over 200 engine updates after the KO
+            // before rebuilding both fighters for the next round.
+            if (g_app.matchPhaseTicks > 200) {
+                g_app.roundNumber = std::min(3, g_app.score[0] + g_app.score[1] + 1);
+                const int serveDirection = g_app.roundWinner == 0 ? 1 : -1;
+                beginRound(serveDirection);
+            }
+        } else if (g_app.matchPhase == MatchPhase::finishPrompt) {
+            // The stock game restores the winner's recognizer during this
+            // prompt. Feed it the same five button events so the exact
+            // SUPER, SUPER, TURBO, TURBO fatality sequence remains required.
+            if (g_app.roundWinner >= 0) {
+                for (int input = 0; input < 5; ++input) {
+                    const auto button = static_cast<CombatButton>(input);
+                    if (combatButtonPressed(g_app.roundWinner, button)) {
+                        processCombatButton(g_app.roundWinner, button);
+                    }
+                }
+            }
+            if (g_app.matchPhase == MatchPhase::finishPrompt &&
+                g_app.matchPhaseTicks >= 140) {
+                g_app.matchPhase = MatchPhase::matchResult;
+                g_app.matchPhaseTicks = 0;
+            }
+        }
+        invalidate();
+        return;
     }
 
     // The original round announcer advances once every five engine updates:
@@ -1098,7 +1523,7 @@ void updateMatch() {
     } else if ((g_app.frameCounter & 3) == 0) {
         g_app.turbo[0] = std::min(kMaximumTurbo, g_app.turbo[0] + 1);
     }
-    g_app.player1Y += player1Move * player1Speed;
+    if (g_app.frozenTicks[0] == 0) g_app.player1Y += player1Move * player1Speed;
     if (g_app.playerCount == 2) {
         float player2Move = 0.0f;
         if (g_app.player2Pad >= 0) {
@@ -1118,43 +1543,50 @@ void updateMatch() {
         } else if ((g_app.frameCounter & 3) == 0) {
             g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
         }
-        g_app.player2Y += player2Move * player2Speed;
+        if (g_app.frozenTicks[1] == 0) g_app.player2Y += player2Move * player2Speed;
     } else {
         const float target = g_app.ballY - 22.0f;
-        g_app.player2Y += std::clamp(target - g_app.player2Y, -2.85f, 2.85f);
+        if (g_app.frozenTicks[1] == 0) {
+            g_app.player2Y += std::clamp(target - g_app.player2Y, -2.85f, 2.85f);
+        }
     }
     g_app.player1Y = std::clamp(g_app.player1Y, 58.0f, 366.0f);
     g_app.player2Y = std::clamp(g_app.player2Y, 58.0f, 366.0f);
-    constexpr std::array<int, 3> player1AttackKeys{'1', '2', '3'};
-    constexpr std::array<int, 3> player2AttackKeys{'6', '7', '8'};
-    constexpr std::array<WORD, 3> gamepadAttackButtons{
-        XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_A, XINPUT_GAMEPAD_B};
     for (int attack = 0; attack < 3; ++attack) {
-        const bool player1Attack = g_app.player1Pad >= 0
-            ? gamepadButtonPressedForPlayer(g_app.player1Pad,
-                                            gamepadAttackButtons[static_cast<std::size_t>(attack)])
-            : (GetAsyncKeyState(player1AttackKeys[static_cast<std::size_t>(attack)]) & 1) != 0;
-        if (player1Attack) triggerPaddleAttack(0, attack);
+        const auto button = static_cast<CombatButton>(attack);
+        if (combatButtonPressed(0, button)) {
+            triggerPaddleAttack(0, attack);
+            processCombatButton(0, button);
+        }
         if (g_app.playerCount == 2) {
-            const bool player2Attack = g_app.player2Pad >= 0
-                ? gamepadButtonPressedForPlayer(g_app.player2Pad,
-                                                gamepadAttackButtons[static_cast<std::size_t>(attack)])
-                : (GetAsyncKeyState(player2AttackKeys[static_cast<std::size_t>(attack)]) & 1) != 0;
-            if (player2Attack) triggerPaddleAttack(1, attack);
+            if (combatButtonPressed(1, button)) {
+                triggerPaddleAttack(1, attack);
+                processCombatButton(1, button);
+            }
         }
     }
-    const bool player1Super = g_app.player1Pad >= 0
-        ? gamepadButtonPressedForPlayer(g_app.player1Pad, XINPUT_GAMEPAD_Y)
-        : (GetAsyncKeyState('4') & 1) != 0;
-    const bool player2Super = g_app.playerCount == 2 &&
-        (g_app.player2Pad >= 0
-             ? gamepadButtonPressedForPlayer(g_app.player2Pad, XINPUT_GAMEPAD_Y)
-             : (GetAsyncKeyState('9') & 1) != 0);
-    if (player1Super) launchProjectile(0);
-    if (player2Super) launchProjectile(1);
-    if (g_app.playerCount == 1 && g_app.super[1] >= 25 && g_app.attackCooldown[1] == 0 &&
-        (g_app.frameCounter % 180) == 0) launchProjectile(1);
+    for (CombatButton button : {CombatButton::turbo, CombatButton::super}) {
+        if (combatButtonPressed(0, button)) processCombatButton(0, button);
+        if (g_app.playerCount == 2 && combatButtonPressed(1, button)) {
+            processCombatButton(1, button);
+        }
+    }
+    if (g_app.playerCount == 1 && g_app.attackCooldown[1] == 0 &&
+        (g_app.frameCounter % 180) == 0) {
+        const int character = g_app.selectedCharacters[1];
+        const auto& recipes = kComboRecipes[static_cast<std::size_t>(character)];
+        for (const auto& recipe : recipes) {
+            if (recipe.component > 0) {
+                launchComponent(1, recipe.component);
+                break;
+            }
+        }
+    }
     updateProjectiles();
+    if (g_app.matchPhase != MatchPhase::playing) {
+        invalidate();
+        return;
+    }
     if (g_app.cheats[3]) {
         invalidate();
         return;
@@ -1313,6 +1745,14 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                     return 0;
                 }
             } else if (g_app.screen == Screen::match) {
+                if (!(lParam & (1LL << 30)) && handleKeyboardCombatKey(wParam)) return 0;
+                if ((wParam == VK_RETURN || wParam == VK_SPACE) &&
+                    g_app.matchPhase == MatchPhase::matchResult) {
+                    g_app.screen = Screen::title;
+                    playTitleMusic();
+                    invalidate();
+                    return 0;
+                }
                 if (wParam == VK_ESCAPE) {
                     g_app.screen = Screen::title;
                     playTitleMusic();
@@ -1518,15 +1958,18 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
         g_app.standingPaddles[index] =
             loadOriginalSprite(instance, kCharacterResourceTypes[index], 1000);
         g_app.fighterNameSprites[index] = loadOriginalSprite(instance, 2023, 600 + index);
-        const auto& attack = kCharacterPrimaryAttacks[static_cast<std::size_t>(index)];
-        for (int frame = 0; frame < attack.frameCount; ++frame) {
-            g_app.projectileFrames[index].push_back(
-                loadOriginalSprite(instance, attack.resourceType,
-                                   attack.firstResourceId + frame));
-        }
         for (int frame = 0; frame < 24; ++frame) {
             g_app.paddleFrames[index][frame] =
                 loadOriginalSprite(instance, kCharacterResourceTypes[index], 3000 + frame);
+        }
+    }
+    for (const auto& visual : kProjectileVisuals) {
+        if (visual.originalType <= 0 || visual.frameCount <= 0) continue;
+        auto& frames = g_app.projectileTypeFrames[static_cast<std::size_t>(
+            visual.originalType)];
+        for (int frame = 0; frame < visual.frameCount; ++frame) {
+            frames.push_back(loadOriginalSprite(instance, visual.resourceType,
+                                                visual.firstResourceId + frame));
         }
     }
     g_app.portraits[16] = loadOriginalBitmap(instance, 2007, 2000);
@@ -1549,6 +1992,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
         g_app.fightFrames[static_cast<std::size_t>(frame)] =
             loadOriginalSprite(instance, 2023, 300 + frame);
     }
+    for (int frame = 0; frame < 14; ++frame) {
+        g_app.finishHimFrames[static_cast<std::size_t>(frame)] =
+            loadOriginalSprite(instance, 2023, 400 + frame);
+        g_app.finishHerFrames[static_cast<std::size_t>(frame)] =
+            loadOriginalSprite(instance, 2023, 450 + frame);
+    }
+    g_app.fatalitySprite = loadOriginalSprite(instance, 2023, 250);
     g_app.titleMusic = loadOriginalVoc(instance, 8000);
     g_app.matchMusic = loadOriginalVoc(instance, 8005);
     constexpr std::array<const wchar_t*, 3> xinputLibraries{

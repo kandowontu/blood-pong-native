@@ -89,15 +89,17 @@ def main() -> None:
             user32.keybd_event(0x12, 0, 2, 0)       # Alt up
             user32.keybd_event(0x11, 0, 2, 0)       # Ctrl up
         if args.screen == "projectile":
-            # Enable Infinite Super, leave the menu, wait out the exact intro,
-            # and fire player one's original Super key.
+            # Leave the menu, wait out the exact intro, then enter Fung Shwei's
+            # recovered component-one recipe: A1, A1, A2, A2, Turbo.
             user32.SendMessageW(window, 0x0100, 0x28, 0)
             user32.SendMessageW(window, 0x0100, 0x28, 0)
             user32.SendMessageW(window, 0x0100, 0x0D, 0)
             user32.SendMessageW(window, 0x0100, 0x1B, 0)
             time.sleep(6.2)
-            user32.keybd_event(0x34, 0, 0, 0)
-            user32.keybd_event(0x34, 0, 2, 0)
+            for key in (0x31, 0x31, 0x32, 0x32, 0x35):
+                user32.keybd_event(key, 0, 0, 0)
+                user32.keybd_event(key, 0, 2, 0)
+                time.sleep(0.04)
     elif args.screen in ("kode", "unlock"):
         user32.SendMessageW(window, 0x0100, 0x28, 0)
         user32.SendMessageW(window, 0x0100, 0x0D, 0)

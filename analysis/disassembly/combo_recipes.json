@@ -1,0 +1,715 @@
+[
+  {
+    "fighter": "Fung Shwei",
+    "recognizer": 4227748,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A2",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A3",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A2",
+          "A3",
+          "A2",
+          "A1",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Lo Than",
+    "recognizer": 4228408,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A1",
+          "A3",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A2",
+          "A1",
+          "A2",
+          "A2",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A1",
+          "A1",
+          "A3",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Jewel",
+    "recognizer": 4229084,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A2",
+          "A2",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A2",
+          "A1",
+          "A2",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A2",
+          "A1",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 3
+      }
+    ]
+  },
+  {
+    "fighter": "Raptor",
+    "recognizer": 4229756,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A1",
+          "A2",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A3",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A3",
+          "A3",
+          "A2",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      }
+    ]
+  },
+  {
+    "fighter": "So Frio",
+    "recognizer": 4230416,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A2",
+          "A1",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A2",
+          "A1",
+          "A3",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A3",
+          "A3",
+          "A1",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 3
+      }
+    ]
+  },
+  {
+    "fighter": "Nai Palm",
+    "recognizer": 4231108,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A3",
+          "A3",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A2",
+          "A2",
+          "A2",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A3",
+          "A1",
+          "A3",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      }
+    ]
+  },
+  {
+    "fighter": "One Eye",
+    "recognizer": 4231800,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A2",
+          "A3",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A3",
+          "A1",
+          "A2",
+          "A1",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A3",
+          "A2",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Raider",
+    "recognizer": 4232496,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A3",
+          "A1",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A2",
+          "A2",
+          "A2",
+          "A3",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A3",
+          "A2",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 3
+      }
+    ]
+  },
+  {
+    "fighter": "Show Lin",
+    "recognizer": 4233192,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A1",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A1",
+          "A2",
+          "A2",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A3",
+          "A2",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Dawg Cau",
+    "recognizer": 4236768,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A2",
+          "A2",
+          "A3",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A2",
+          "A2",
+          "A3",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A3",
+          "A2",
+          "A1",
+          "A1",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      }
+    ]
+  },
+  {
+    "fighter": "Omoh",
+    "recognizer": 4234568,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A2",
+          "A1",
+          "A2",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A2",
+          "A3",
+          "A2",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Carmack",
+    "recognizer": 4235108,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A2",
+          "A2",
+          "A1",
+          "A3",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A2",
+          "A3",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Pain",
+    "recognizer": 4235656,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A2",
+          "A3",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A2",
+          "A2",
+          "A1",
+          "A1",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Lo Pan",
+    "recognizer": 4236216,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A2",
+          "A2",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      },
+      {
+        "sequence": [
+          "A3",
+          "A3",
+          "A2",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 2
+      }
+    ]
+  },
+  {
+    "fighter": "Mai Lai",
+    "recognizer": 4233884,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A1",
+          "A1",
+          "A1",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A2",
+          "A1",
+          "A1",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 3
+      },
+      {
+        "sequence": [
+          "A3",
+          "A2",
+          "A2",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 1
+      }
+    ]
+  },
+  {
+    "fighter": "Baka",
+    "recognizer": 4237384,
+    "recipes": [
+      {
+        "sequence": [
+          "SUPER",
+          "SUPER",
+          "TURBO",
+          "TURBO"
+        ],
+        "kind": "fatality"
+      },
+      {
+        "sequence": [
+          "A1",
+          "A2",
+          "A3",
+          "A3",
+          "SUPER"
+        ],
+        "kind": "component",
+        "index": 2
+      },
+      {
+        "sequence": [
+          "A3",
+          "A2",
+          "A2",
+          "A2",
+          "TURBO"
+        ],
+        "kind": "component",
+        "index": 1
+      }
+    ]
+  }
+]

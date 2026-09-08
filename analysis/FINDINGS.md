@@ -59,9 +59,6 @@ the eight non-sprite icon/version/dialog records are rejected.
 - Match setup checks additional codes including `414-141`, `124-124`, and
   `421-421` outside the message dispatcher.
 
-The exact all-content/registration activation path remains under audit. The
-native shortcut must not claim that `555-555` is the unlock code.
-
 Static cross-reference auditing confirms that no versus-kode branch writes the
 full-version byte. The native shortcut therefore activates the reconstructed
 equivalent of the full-version flag directly while on the kode screen; it does
@@ -83,19 +80,26 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   types 8 and 11 copy the owner's current paddle sprite, and type 0 is not given
   a visual pointer by its handler.
 - `CHARACTER_TABLES.md` records all 49 literal projectile initializers from the
-  16 fighter constructors, including type, variant, delay and damage. The native
-  primary attack for each fighter now follows this constructor table rather
-  than assuming that numerically ordered art banks correspond to roster order.
+  16 fighter constructors, including type, variant, mode and damage. The native
+  component table follows all of these constructor entries rather than assuming
+  that numerically ordered art banks correspond to roster order.
+- `COMBO_RECIPES.md` records all 59 accepting input paths recovered by
+  deterministic emulation of the 16 original recognizers: 43 component moves
+  and 16 fatalities. Each recognizer uses the original 60-update input window;
+  every fatality accepts `SUPER, SUPER, TURBO, TURBO`.
 - Fighter health initializes to `0xBA` (186) at `0x0040D310`; the super field is
   capped at `0x9A` (154), including at `0x0040CC40`. The native meters use these
   original ranges. The adjacent `+0x100` field initializes to `0x3A` (58) and is
   represented by the native Turbo gauge.
 - Damage reactions, health/super state, character projectiles, keyboard input,
   XInput assignment/dead-zone handling, and vibration now run in the native
-  match loop. Primary projectile damage now comes from the original constructor
-  arguments. Exact movement timing and the non-damaging/status behavior of
-  secondary moves remain subject to semantic comparison as the class-method
-  audit progresses.
+  match loop. Projectile damage comes from the original constructor arguments.
+  The special callback pass has translated the 516-pixel Fung Shwei beam, Nai
+  Palm's four extra-ball trajectories, So Frio's rising/drop and mirrored ice
+  forms, One Eye's moving double, Show Lin/Dawg Cau's giant effect, Omoh's
+  accelerating lob, Pain's full-height apparition, and Dawg Cau's rising column.
+  Exact movement timing and some secondary status semantics remain subject to
+  semantic comparison as the class-method audit progresses.
 
 ## Input and match presentation
 
@@ -110,6 +114,11 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   original embedded frames.
 - The health, Turbo, Super, round-win, and fighter-name HUD art now comes from
   original type-2004 IDs 128 and 400–403 plus type-2023 IDs 600–615.
+- On a knockout, the original increments the winning fighter's `+0x774` round
+  count, starts a new round after just over 200 updates, and enters the finish
+  path at two wins. `0x004143C4` selects FINISH HER for fighter numbers 3, 10,
+  and 16; `0x00414484` drives the 28-stage/140-update prompt. The native match
+  state follows that structure and uses the exact type-2023 frames.
 - The native presenter never clears the live window. It scales the completed
   640×480 frame and its letterbox bars into a persistent client-sized buffer,
   then performs one final `BitBlt`; `WM_ERASEBKGND` remains suppressed. The game

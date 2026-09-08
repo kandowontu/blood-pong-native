@@ -40,6 +40,7 @@ copies. Attack scan codes are stored at fighter offsets `+0x133` through
 - The native port maps XInput `X/A/B` to the three attacks, `Y` to Super, and
   right shoulder to Turbo while retaining the exact original keyboard defaults.
 
-The exact character-specific combination transitions remain represented in the
-byte-complete listing and function ledger while their behavioral translation is
-in progress.
+`audit_combo_state_machines.py` deterministically exercises those original
+recognizers against a synthetic fighter/input object and emits every shortest
+accepting path to `COMBO_RECIPES.md` and `combo_recipes.json`. The native input
+history now uses those exact recipes and the original 60-update timeout.
