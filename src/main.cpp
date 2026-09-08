@@ -160,6 +160,21 @@ struct Projectile {
     int mode{};
 };
 
+struct BallEffectState {
+    bool active{};
+    bool visible{true};
+    int type{};
+    int owner{-1};
+    int counter{};
+    int returnBase{kDefaultBallSpeed};
+    bool reboundPending{};
+    bool echoActive{};
+    float echoX{};
+    float echoY{};
+    float echoVelocityX{};
+    float echoVelocityY{};
+};
+
 struct ProjectileVisual {
     int originalType{};
     int resourceType{};
@@ -302,6 +317,7 @@ struct App {
     float secondaryBallVelocityX{-5.0f};
     float secondaryBallVelocityY{5.0f};
     std::array<bool, 2> secondaryBallCollisionArmed{true, true};
+    std::array<BallEffectState, 2> ballEffects{};
     std::array<int, 2> paddleAppearance{0, 1};
     std::array<int, 2> randomPaddleTicks{};
     std::array<int, 2> score{};
@@ -319,6 +335,8 @@ struct App {
     int realmReturnWinner{-1};
     std::array<int, 2> health{kMaximumHealth, kMaximumHealth};
     std::array<int, 2> super{};
+    std::array<bool, 2> superActive{};
+    std::array<int, 2> superDrainTicks{};
     std::array<int, 2> animationFrame{};
     std::array<int, 2> animationTicks{};
     std::array<int, 2> attackCooldown{};
@@ -344,6 +362,12 @@ constexpr std::array<std::string_view, 16> kCharacterNames{
 constexpr std::array<int, 16> kCharacterResourceTypes{
     2017, 2006, 2005, 2014, 2016, 2010, 2011, 2015,
     2018, 2000, 2012, 2002, 2013, 2008, 2020, 2009};
+
+// Literal +0x77c assignments in the sixteen constructor handlers at
+// 0x0040D83E..0x0040E71E. This selects the ball behavior applied while that
+// fighter's full-Super state is armed.
+constexpr std::array<int, 16> kBallEffectByCharacter{
+    4, 1, 6, 3, 7, 8, 5, 10, 4, 9, 6, 7, 4, 9, 6, 8};
 
 // The original loader at 0x0040AA64 binds these VOC resources to the same
 // sixteen-entry fighter constructor order used by character selection.
@@ -1034,11 +1058,23 @@ void renderMatch() {
         g_app.currentKode != VersusKode::invisibleBall;
     if (showBall) {
         const auto& ball = activeBallSprite();
-        drawSprite(ball, kArtX + static_cast<int>(g_app.ballX),
-                   kArtY + static_cast<int>(g_app.ballY));
+        if (g_app.ballEffects[0].visible) {
+            drawSprite(ball, kArtX + static_cast<int>(g_app.ballX),
+                       kArtY + static_cast<int>(g_app.ballY));
+        }
+        if (g_app.ballEffects[0].echoActive) {
+            drawSprite(ball, kArtX + static_cast<int>(g_app.ballEffects[0].echoX),
+                       kArtY + static_cast<int>(g_app.ballEffects[0].echoY));
+        }
         if (g_app.secondaryBallActive) {
-            drawSprite(ball, kArtX + static_cast<int>(g_app.secondaryBallX),
-                       kArtY + static_cast<int>(g_app.secondaryBallY));
+            if (g_app.ballEffects[1].visible) {
+                drawSprite(ball, kArtX + static_cast<int>(g_app.secondaryBallX),
+                           kArtY + static_cast<int>(g_app.secondaryBallY));
+            }
+            if (g_app.ballEffects[1].echoActive) {
+                drawSprite(ball, kArtX + static_cast<int>(g_app.ballEffects[1].echoX),
+                           kArtY + static_cast<int>(g_app.ballEffects[1].echoY));
+            }
         }
     }
 
@@ -1358,6 +1394,8 @@ void resetBall() {
         ? -static_cast<float>(g_app.ballBaseSpeed)
         : static_cast<float>(g_app.ballBaseSpeed);
     g_app.secondaryBallCollisionArmed = {true, true};
+    g_app.ballEffects = {};
+    for (auto& effect : g_app.ballEffects) effect.returnBase = g_app.ballBaseSpeed;
 }
 
 void beginRound() {
@@ -1385,6 +1423,8 @@ void beginRound() {
     }
     g_app.turbo = {kMaximumTurbo, kMaximumTurbo};
     g_app.super = {};
+    g_app.superActive = {};
+    g_app.superDrainTicks = {};
     g_app.animationFrame = {};
     g_app.animationTicks = {};
     g_app.attackCooldown = {};
@@ -1799,6 +1839,18 @@ void processCombatButton(int player, CombatButton button) {
     history[static_cast<std::size_t>(size++)] = button;
     g_app.comboTimeout[player] = 60;
 
+    // 0x0040D064 arms the fighter's +0x754 Super flag without consuming the
+    // input from the component recognizer. The separate status object drains
+    // the +0x104 gauge while this flag remains active.
+    if (button == CombatButton::super && g_app.matchPhase == MatchPhase::playing &&
+        !g_app.roundIntroActive && !g_app.superActive[static_cast<std::size_t>(player)] &&
+        (g_app.super[static_cast<std::size_t>(player)] >= kMaximumSuper ||
+         g_app.cheats[2])) {
+        g_app.super[static_cast<std::size_t>(player)] = kMaximumSuper;
+        g_app.superActive[static_cast<std::size_t>(player)] = true;
+        g_app.superDrainTicks[static_cast<std::size_t>(player)] = 0;
+    }
+
     const int character = g_app.selectedCharacters[static_cast<std::size_t>(player)];
     for (const auto& recipe : kComboRecipes[static_cast<std::size_t>(character)]) {
         if (!recipeMatches(player, recipe)) continue;
@@ -1996,14 +2048,156 @@ void updateProjectiles() {
     }
 }
 
+void clearBallEffect(BallEffectState& effect, bool clearEcho = false) {
+    effect.active = false;
+    effect.visible = true;
+    effect.type = 0;
+    effect.owner = -1;
+    effect.counter = 0;
+    effect.returnBase = g_app.ballBaseSpeed;
+    effect.reboundPending = false;
+    if (clearEcho) effect.echoActive = false;
+}
+
+float randomSignedMagnitude(int minimum, int rangeMask) {
+    const float magnitude = static_cast<float>(
+        minimum + static_cast<int>(GetTickCount() & rangeMask));
+    return (GetTickCount() & 1) != 0 ? magnitude : -magnitude;
+}
+
+void updateBallEcho(BallEffectState& effect, int ballWidth, int ballHeight,
+                    float timeScale) {
+    if (!effect.echoActive) return;
+    effect.echoX += effect.echoVelocityX * timeScale;
+    effect.echoY += effect.echoVelocityY * timeScale;
+    if (effect.echoY < 0.0f ||
+        effect.echoY + ballHeight > static_cast<float>(kPlayfieldHeight)) {
+        effect.echoY = std::clamp(
+            effect.echoY, 0.0f,
+            static_cast<float>(kPlayfieldHeight - ballHeight));
+        effect.echoVelocityY = -effect.echoVelocityY;
+    }
+    if (effect.echoX + ballWidth < 0.0f ||
+        effect.echoX > static_cast<float>(kPlayfieldWidth)) {
+        effect.echoActive = false;
+    }
+}
+
+void updateBallEffectBeforeBounds(BallEffectState& effect, float x, float y,
+                                  float& velocityX, float& velocityY,
+                                  int ballWidth, int ballHeight) {
+    if (!effect.active) return;
+    ++effect.counter;
+    const bool movingRight = velocityX > 0.0f;
+    const float horizontalGap = movingRight
+        ? g_app.player2X - (x + ballWidth)
+        : x - (g_app.player1X + kFighterCollisionWidth);
+    const float targetY = movingRight ? g_app.player2Y : g_app.player1Y;
+
+    switch (effect.type) {
+        case 4:
+            if (effect.counter >= 6) {
+                effect.counter = 0;
+                const float horizontal = static_cast<float>(
+                    2 + static_cast<int>(GetTickCount() & 7));
+                velocityX = velocityX >= 0.0f ? horizontal : -horizontal;
+                velocityY = randomSignedMagnitude(2, 7);
+            }
+            break;
+        case 6:
+            if (horizontalGap < 100.0f) {
+                velocityY = randomSignedMagnitude(6, 0);
+                clearBallEffect(effect);
+            }
+            break;
+        case 7:
+            if (horizontalGap < 100.0f &&
+                std::abs((y + ballHeight * 0.5f) - targetY + 27.0f) < 100.0f) {
+                velocityY = -velocityY;
+                clearBallEffect(effect);
+            }
+            break;
+        case 9:
+            if (effect.reboundPending && std::abs(horizontalGap) > 100.0f) {
+                velocityX = -velocityX;
+                if ((GetTickCount() & 1) != 0) velocityY = -velocityY;
+                clearBallEffect(effect);
+            }
+            break;
+        case 10:
+            if (horizontalGap < 200.0f && effect.counter >= 4) {
+                effect.counter = 0;
+                velocityX += velocityX >= 0.0f ? 1.0f : -1.0f;
+                velocityY += velocityY >= 0.0f ? 1.0f : -1.0f;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void finishBallEffectAtHorizontalWall(BallEffectState& effect,
+                                      float& velocityX, float& velocityY) {
+    if (!effect.active) return;
+    const int type = effect.type;
+    if (type == 1) {
+        velocityX = std::copysign(std::max(1.0f, std::abs(velocityX) - 3.0f), velocityX);
+        velocityY = std::copysign(std::max(1.0f, std::abs(velocityY) - 3.0f), velocityY);
+    } else if (type == 2) {
+        velocityX = std::copysign(std::abs(velocityX) + 3.0f, velocityX);
+        velocityY = std::copysign(std::abs(velocityY) + 3.0f, velocityY);
+    } else if (type == 4 || type == 5 || type == 10) {
+        const float base = static_cast<float>(g_app.ballBaseSpeed);
+        velocityX = std::copysign(base, velocityX);
+        velocityY = std::copysign(base, velocityY);
+    }
+    clearBallEffect(effect);
+}
+
+bool applyPlayerBallEffect(int player, BallEffectState& effect,
+                           float x, float y, float& velocityX, float& velocityY) {
+    if (!g_app.superActive[static_cast<std::size_t>(player)]) return false;
+    const int character = std::clamp(
+        g_app.selectedCharacters[static_cast<std::size_t>(player)], 0, 15);
+    effect.active = true;
+    effect.visible = true;
+    effect.type = kBallEffectByCharacter[static_cast<std::size_t>(character)];
+    effect.owner = player;
+    effect.counter = 0;
+    effect.returnBase = g_app.ballBaseSpeed;
+    effect.reboundPending = false;
+
+    if (effect.type == 1) effect.returnBase = 8;
+    if (effect.type == 2) effect.returnBase = 4;
+    if (effect.type == 3) effect.visible = false;
+    if (effect.type == 6) {
+        velocityX = player == 0 ? 6.0f : -6.0f;
+        velocityY = 0.0f;
+        return true;
+    }
+    if (effect.type == 8) {
+        velocityX = player == 0 ? 6.0f : -6.0f;
+        velocityY = randomSignedMagnitude(4, 0);
+        effect.echoActive = true;
+        effect.echoX = x;
+        effect.echoY = y;
+        effect.echoVelocityX = velocityX;
+        effect.echoVelocityY = -velocityY;
+        return true;
+    }
+    return false;
+}
+
 void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
-                      std::array<bool, 2>& collisionArmed, bool wallOnly) {
+                      std::array<bool, 2>& collisionArmed,
+                      BallEffectState& effect, bool wallOnly) {
     const auto& sprite = activeBallSprite();
     const int ballWidth = sprite ? sprite.width : 16;
     const int ballHeight = sprite ? sprite.height : 16;
     const float timeScale = g_app.cheats[4] ? 0.45f : 1.0f;
     x += velocityX * timeScale;
     y += velocityY * timeScale;
+    updateBallEcho(effect, ballWidth, ballHeight, timeScale);
 
     if (wallOnly) {
         // The decoy callback at 0x00413868 reflects at every edge, makes no
@@ -2020,6 +2214,9 @@ void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
         return;
     }
 
+    updateBallEffectBeforeBounds(
+        effect, x, y, velocityX, velocityY, ballWidth, ballHeight);
+
     // 0x004130AF and 0x004131CB treat the left and right playfield edges as
     // damaging walls. The ball rebounds in place and stays in play.
     if (x + ballWidth > static_cast<float>(kPlayfieldWidth)) {
@@ -2028,6 +2225,7 @@ void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
         collisionArmed = {true, true};
         playEffect(g_app.ballHitSound, 0.75f);
         damagePlayer(1, g_app.ballDamage);
+        finishBallEffectAtHorizontalWall(effect, velocityX, velocityY);
         if (g_app.matchPhase != MatchPhase::playing) return;
     } else if (x < 0.0f) {
         x = 0.0f;
@@ -2035,12 +2233,23 @@ void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
         collisionArmed = {true, true};
         playEffect(g_app.ballHitSound, 0.75f);
         damagePlayer(0, g_app.ballDamage);
+        finishBallEffectAtHorizontalWall(effect, velocityX, velocityY);
         if (g_app.matchPhase != MatchPhase::playing) return;
     }
 
     if (y < 0.0f || y + ballHeight > static_cast<float>(kPlayfieldHeight)) {
+        const bool hitTop = y < 0.0f;
         y = std::clamp(y, 0.0f, static_cast<float>(kPlayfieldHeight - ballHeight));
-        velocityY = -velocityY;
+        if (effect.active && effect.type == 5) {
+            const float horizontal = static_cast<float>(
+                3 + static_cast<int>(GetTickCount() & 7));
+            velocityX = velocityX >= 0.0f ? horizontal : -horizontal;
+            const float vertical = static_cast<float>(
+                3 + static_cast<int>(GetTickCount() & 7));
+            velocityY = hitTop ? vertical : -vertical;
+        } else {
+            velocityY = -velocityY;
+        }
         collisionArmed = {true, true};
         playEffect(g_app.ballBounceSound, 0.65f);
     }
@@ -2054,7 +2263,15 @@ void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
         collisionArmed[0] = false;
         collisionArmed[1] = true;
         playEffect(g_app.ballHitSound, 0.75f);
-        const float base = static_cast<float>(g_app.ballBaseSpeed);
+        const bool delayedRebound = effect.active && effect.type == 9 &&
+            effect.owner != 0;
+        if (delayedRebound) {
+            effect.reboundPending = true;
+        } else {
+            clearBallEffect(effect);
+            if (applyPlayerBallEffect(0, effect, x, y, velocityX, velocityY)) return;
+        }
+        const float base = static_cast<float>(effect.returnBase);
         if (velocityX < 0.0f) {
             if (g_app.player1Y + 20.0f > y + ballHeight) {
                 velocityX = base - 1.0f;
@@ -2081,7 +2298,15 @@ void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
         collisionArmed[1] = false;
         collisionArmed[0] = true;
         playEffect(g_app.ballHitSound, 0.75f);
-        const float base = static_cast<float>(g_app.ballBaseSpeed);
+        const bool delayedRebound = effect.active && effect.type == 9 &&
+            effect.owner != 1;
+        if (delayedRebound) {
+            effect.reboundPending = true;
+        } else {
+            clearBallEffect(effect);
+            if (applyPlayerBallEffect(1, effect, x, y, velocityX, velocityY)) return;
+        }
+        const float base = static_cast<float>(effect.returnBase);
         if (velocityX > 0.0f) {
             if (g_app.player2Y + 20.0f > y + ballHeight) {
                 velocityX = -(base - 1.0f);
@@ -2177,6 +2402,32 @@ void updateMatch() {
         }
         invalidate();
         return;
+    }
+
+    for (int player = 0; player < 2; ++player) {
+        if (g_app.cheats[2]) {
+            g_app.super[static_cast<std::size_t>(player)] = kMaximumSuper;
+        }
+        if (player == 1 && g_app.playerCount == 1 &&
+            g_app.super[1] >= kMaximumSuper && !g_app.superActive[1]) {
+            // The stock CPU callbacks arm +0x754 as soon as their Super gauge
+            // reaches the same 0x9A threshold used by human input.
+            g_app.superActive[1] = true;
+            g_app.superDrainTicks[1] = 0;
+        }
+        if (!g_app.superActive[static_cast<std::size_t>(player)]) {
+            g_app.superDrainTicks[static_cast<std::size_t>(player)] = 0;
+            continue;
+        }
+        if (g_app.cheats[2]) continue;
+        if (++g_app.superDrainTicks[static_cast<std::size_t>(player)] >= 5) {
+            g_app.superDrainTicks[static_cast<std::size_t>(player)] = 0;
+            auto& gauge = g_app.super[static_cast<std::size_t>(player)];
+            gauge = std::max(0, gauge - 1);
+            if (gauge == 0) {
+                g_app.superActive[static_cast<std::size_t>(player)] = false;
+            }
+        }
     }
 
     // The shared movement routine at 0x0040B431 uses eight pixels per update
@@ -2333,7 +2584,7 @@ void updateMatch() {
         }
         updateBallObject(g_app.ballX, g_app.ballY,
                          g_app.ballVelocityX, g_app.ballVelocityY,
-                         g_app.ballCollisionArmed, false);
+                         g_app.ballCollisionArmed, g_app.ballEffects[0], false);
         if (g_app.matchPhase != MatchPhase::playing) {
             invalidate();
             return;
@@ -2343,6 +2594,7 @@ void updateMatch() {
                              g_app.secondaryBallVelocityX,
                              g_app.secondaryBallVelocityY,
                              g_app.secondaryBallCollisionArmed,
+                             g_app.ballEffects[1],
                              g_app.currentKode == VersusKode::decoyBall);
         }
     }

@@ -51,19 +51,50 @@ not the potentially wider standing artwork.
 - Kode `414141` selects the alternate callback for the secondary ball.
   Kodes `414141` and `202202` activate that secondary ball when the ROUND/FIGHT
   sequence releases play; its initial x velocity is the primary ball's inverse.
-- Kode `228228` periodically replaces both velocity components from
+- Kode `228882` periodically replaces both velocity components from
   `GetTickCount` low bits every sixth update.
-- The default callback also has ten temporary ball-status branches connected
-  to fighter fields at offsets `+0x754` and `+0x77c`. Those specialized
-  status-effect semantics and the complete secondary/decoy-ball presentation
-  remain open audit items.
+
+## Full-Super temporary ball statuses
+
+The input handler at `0x0040D064` arms fighter byte `+0x754` when the Super
+gauge at `+0x104` reaches `0x9a`. The status presenter rooted at `0x00404840`
+then removes one gauge point every fifth update until the flag clears. On the
+next paddle contact, the default callback copies that fighter's `+0x77c` type
+to the ball. In the game's sixteen-entry fighter order, those literal types are
+`4, 1, 6, 3, 7, 8, 5, 10, 4, 9, 6, 7, 4, 9, 6, 8`.
+
+- Type 1 uses eight as the outgoing-angle base, then reduces both velocity
+  magnitudes by three at an outer damage wall.
+- Type 2 uses four as the outgoing-angle base, then increases both velocity
+  magnitudes by three at an outer damage wall.
+- Type 3 hides the ball until its status is cleared.
+- Type 4 replaces both velocity components from `GetTickCount` low bits every
+  sixth update.
+- Type 5 randomizes both components at a top or bottom wall, preserving the
+  horizontal direction and sending the ball away from that wall.
+- Type 6 launches horizontally at six pixels per update, then assigns a random
+  signed vertical speed of six within 100 horizontal pixels of the target.
+- Type 7 reverses vertical direction when its 100-pixel horizontal and vertical
+  target-proximity checks both pass.
+- Type 8 launches at six by signed four and activates a mirrored-y auxiliary
+  ball. The auxiliary reflects vertically and disappears beyond a side edge;
+  it does not collide with fighters or cause damage.
+- Type 9 survives the next opponent return, travels 100 pixels away, then
+  reverses horizontal direction and randomly preserves or reverses vertical
+  direction.
+- Type 10 adds one to both signed velocity magnitudes every fourth update while
+  the ball is within 200 horizontal pixels of its target.
+
+Paddle contact normally clears an existing status before applying the contact
+fighter's active Super. An outer damage wall also clears it after applying the
+type-specific velocity or visibility cleanup. Types 4, 5, and 10 restore the
+constructor base speed there.
 
 ## Native reconstruction
 
 The native match loop now uses the recovered center, speed, damage, playfield
-bounds, fixed fighter collision rectangles, two collision gates, and all base
-outgoing-angle rules. It also removes the earlier reconstructed serve reset,
-contact damage, Super gain, and artificial per-return acceleration. The four
-speed/damage kode overrides, second-ball modes, temporary status branches, and
-fighter-specific outer-wall damage cues are intentionally documented as
-remaining work rather than being presented as exact.
+bounds, fixed fighter collision rectangles, two collision gates, all base
+outgoing-angle rules, all ten temporary status branches, and both second-ball
+modes. It also removes the earlier reconstructed serve reset, contact damage,
+Super gain, and artificial per-return acceleration. Fighter-specific outer-wall
+damage cues remain a documented fidelity item.
