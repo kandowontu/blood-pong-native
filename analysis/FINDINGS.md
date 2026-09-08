@@ -76,13 +76,45 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   So Frio/2016, Nai Palm/2010, One Eye/2011, Raider/2015, Show Lin/2018, Dawg
   Cau/2000, Omoh/2012, Carmack/2002, Pain/2013, Lo Pan/2008, Mai Lai/2020, and
   Baka/2009. The native loader uses this exact mapping.
-- The shared projectile type 2022 is organized into 16 ordered animation
-  groups. The native combat slice loads each complete group rather than using
-  an invented replacement graphic.
+- The projectile initializer at `0x0041AC54` dispatches through a 25-way type
+  switch at `0x0041ACB5`. `PROJECTILE_TYPES.md` records every handler, callback,
+  frame pointer, embedded resource bank and declared hit-box size. Most visuals
+  come from type 2022; type 9 intentionally reuses the type-2004 ball sprite,
+  types 8 and 11 copy the owner's current paddle sprite, and type 0 is not given
+  a visual pointer by its handler.
+- `CHARACTER_TABLES.md` records all 49 literal projectile initializers from the
+  16 fighter constructors, including type, variant, delay and damage. The native
+  primary attack for each fighter now follows this constructor table rather
+  than assuming that numerically ordered art banks correspond to roster order.
+- Fighter health initializes to `0xBA` (186) at `0x0040D310`; the super field is
+  capped at `0x9A` (154), including at `0x0040CC40`. The native meters use these
+  original ranges. The adjacent `+0x100` field initializes to `0x3A` (58) and is
+  represented by the native Turbo gauge.
 - Damage reactions, health/super state, character projectiles, keyboard input,
   XInput assignment/dead-zone handling, and vibration now run in the native
-  match loop. Exact original timing/damage constants remain subject to semantic
-  comparison as the class-method audit progresses.
+  match loop. Primary projectile damage now comes from the original constructor
+  arguments. Exact movement timing and the non-damaging/status behavior of
+  secondary moves remain subject to semantic comparison as the class-method
+  audit progresses.
+
+## Input and match presentation
+
+- `INPUT_CONFIGURATION.md` documents the original DirectInput defaults and the
+  fighter-field copies that distinguish Attack 1/2/3, Turbo and Super. The
+  native keyboard defaults now match the original (`W/S`, `1/2/3`, `5`, `4`
+  for player 1 and arrows, `6/7/8`, `0`, `9` for player 2).
+- `0x00413CF8` loads the type-2023 ROUND, digits 1–3, and FIGHT banks.
+  `0x004141EC` advances them on a five-update cadence, swaps banks at stages 19
+  and 37, holds the middle FIGHT frame during stages 43–49, and releases play at
+  stage 59. The native match start follows this same stage sequence and uses the
+  original embedded frames.
+- The health, Turbo, Super, round-win, and fighter-name HUD art now comes from
+  original type-2004 IDs 128 and 400–403 plus type-2023 IDs 600–615.
+- The native presenter never clears the live window. It scales the completed
+  640×480 frame and its letterbox bars into a persistent client-sized buffer,
+  then performs one final `BitBlt`; `WM_ERASEBKGND` remains suppressed. The game
+  timer uses the 15.6 ms Windows cadence instead of allowing a requested 16 ms
+  interval to quantize to two ticks on affected systems.
 
 ## Registration/full-version gate
 

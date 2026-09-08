@@ -1,0 +1,400 @@
+[
+  {
+    "projectileType": 0,
+    "handler": 4305015,
+    "callback": 4311016,
+    "visualSource": "none",
+    "visualPointer": null,
+    "resourceType": null,
+    "resourceIds": [],
+    "width": null,
+    "height": null
+  },
+  {
+    "projectileType": 1,
+    "handler": 4306347,
+    "callback": 4311048,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417380,
+    "resourceType": 2022,
+    "resourceIds": [
+      300,
+      301
+    ],
+    "width": 516,
+    "height": 16
+  },
+  {
+    "projectileType": 2,
+    "handler": 4304635,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417388,
+    "resourceType": 2022,
+    "resourceIds": [
+      700,
+      701,
+      702,
+      703,
+      704,
+      705
+    ],
+    "width": 86,
+    "height": 29
+  },
+  {
+    "projectileType": 3,
+    "handler": 4304379,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417412,
+    "resourceType": 2022,
+    "resourceIds": [
+      1300,
+      1301,
+      1302,
+      1303,
+      1304,
+      1305
+    ],
+    "width": 34,
+    "height": 29
+  },
+  {
+    "projectileType": 4,
+    "handler": 4306066,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417436,
+    "resourceType": 2022,
+    "resourceIds": [
+      160,
+      161,
+      162,
+      163,
+      164,
+      165,
+      166
+    ],
+    "width": 32,
+    "height": 56
+  },
+  {
+    "projectileType": 5,
+    "handler": 4306207,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417464,
+    "resourceType": 2022,
+    "resourceIds": [
+      180,
+      181,
+      182,
+      183
+    ],
+    "width": 80,
+    "height": 9
+  },
+  {
+    "projectileType": 6,
+    "handler": 4306884,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417480,
+    "resourceType": 2022,
+    "resourceIds": [
+      128,
+      129,
+      130,
+      131,
+      132,
+      133
+    ],
+    "width": 72,
+    "height": 40
+  },
+  {
+    "projectileType": 7,
+    "handler": 4307025,
+    "callback": 4310512,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417504,
+    "resourceType": 2022,
+    "resourceIds": [
+      150,
+      151
+    ],
+    "width": 24,
+    "height": 91
+  },
+  {
+    "projectileType": 8,
+    "handler": 4306813,
+    "callback": 4310220,
+    "visualSource": "owner paddle",
+    "visualPointer": null,
+    "resourceType": null,
+    "resourceIds": [],
+    "width": 12,
+    "height": 54
+  },
+  {
+    "projectileType": 9,
+    "handler": 4305056,
+    "callback": 4313896,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417168,
+    "resourceType": 2004,
+    "resourceIds": [
+      500
+    ],
+    "width": 16,
+    "height": 16
+  },
+  {
+    "projectileType": 10,
+    "handler": 4305232,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417512,
+    "resourceType": 2022,
+    "resourceIds": [
+      1500,
+      1501,
+      1502,
+      1503
+    ],
+    "width": 72,
+    "height": 35
+  },
+  {
+    "projectileType": 11,
+    "handler": 4305138,
+    "callback": 4313036,
+    "visualSource": "owner paddle",
+    "visualPointer": null,
+    "resourceType": null,
+    "resourceIds": [],
+    "width": 12,
+    "height": 54
+  },
+  {
+    "projectileType": 12,
+    "handler": 4305610,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417528,
+    "resourceType": 2022,
+    "resourceIds": [
+      1200,
+      1201,
+      1202,
+      1203,
+      1204,
+      1205,
+      1206
+    ],
+    "width": 80,
+    "height": 32
+  },
+  {
+    "projectileType": 13,
+    "handler": 4306559,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417556,
+    "resourceType": 2022,
+    "resourceIds": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205
+    ],
+    "width": 48,
+    "height": 42
+  },
+  {
+    "projectileType": 14,
+    "handler": 4306487,
+    "callback": 4311640,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417580,
+    "resourceType": 2022,
+    "resourceIds": [
+      1000,
+      1001,
+      1002,
+      1003,
+      1004,
+      1005,
+      1006,
+      1007,
+      1008,
+      1009,
+      1010,
+      1011,
+      1012,
+      1013,
+      1014
+    ],
+    "width": 200,
+    "height": 124
+  },
+  {
+    "projectileType": 15,
+    "handler": 4306703,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417640,
+    "resourceType": 2022,
+    "resourceIds": [
+      600,
+      601,
+      602
+    ],
+    "width": 28,
+    "height": 28
+  },
+  {
+    "projectileType": 16,
+    "handler": 4305374,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417652,
+    "resourceType": 2022,
+    "resourceIds": [
+      210,
+      211,
+      212,
+      213,
+      214,
+      215
+    ],
+    "width": 48,
+    "height": 42
+  },
+  {
+    "projectileType": 17,
+    "handler": 4305518,
+    "callback": 4313564,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417676,
+    "resourceType": 2022,
+    "resourceIds": [
+      170
+    ],
+    "width": 20,
+    "height": 20
+  },
+  {
+    "projectileType": 18,
+    "handler": 4304269,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417680,
+    "resourceType": 2022,
+    "resourceIds": [
+      400,
+      401,
+      402
+    ],
+    "width": 40,
+    "height": 40
+  },
+  {
+    "projectileType": 19,
+    "handler": 4305812,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417692,
+    "resourceType": 2022,
+    "resourceIds": [
+      1550,
+      1551,
+      1552,
+      1553,
+      1554
+    ],
+    "width": 40,
+    "height": 35
+  },
+  {
+    "projectileType": 20,
+    "handler": 4305924,
+    "callback": 4314772,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417712,
+    "resourceType": 2022,
+    "resourceIds": [
+      1600
+    ],
+    "width": 140,
+    "height": 432
+  },
+  {
+    "projectileType": 21,
+    "handler": 4304489,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417716,
+    "resourceType": 2022,
+    "resourceIds": [
+      350,
+      351,
+      352,
+      353,
+      354
+    ],
+    "width": 88,
+    "height": 23
+  },
+  {
+    "projectileType": 22,
+    "handler": 4304895,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417764,
+    "resourceType": 2022,
+    "resourceIds": [
+      260,
+      261,
+      262,
+      263
+    ],
+    "width": 64,
+    "height": 26
+  },
+  {
+    "projectileType": 23,
+    "handler": 4304775,
+    "callback": 4307188,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417748,
+    "resourceType": 2022,
+    "resourceIds": [
+      250,
+      251,
+      252,
+      253
+    ],
+    "width": 64,
+    "height": 26
+  },
+  {
+    "projectileType": 24,
+    "handler": 4304153,
+    "callback": 4314268,
+    "visualSource": "embedded resource",
+    "visualPointer": 4417736,
+    "resourceType": 2022,
+    "resourceIds": [
+      500,
+      501,
+      502
+    ],
+    "width": 14,
+    "height": 62
+  }
+]

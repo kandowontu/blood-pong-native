@@ -24,10 +24,16 @@ The native build currently includes the original title, selection, versus,
 arena and Credits presentation; the exact 16-fighter resource mapping; all
 three arena backdrops; embedded VOC music; keyboard and XInput gamepad
 controls; gamepad assignment/dead-zone/vibration options; health and super
-state; animated fighter damage frames; fighter projectile banks; fullscreen;
-and the context-sensitive secret shortcut. The gameplay/class-method audit is
-still being used to replace provisional timing and damage constants with the
-original values before a preservation release is declared 1:1 complete.
+state using the original 186/154 ranges; animated fighter damage frames; fighter
+projectile banks and primary damage values recovered from the original
+constructor/type switches; fullscreen; and the context-sensitive secret
+shortcut. The exact original keyboard layout (three attacks, Turbo and Super),
+the original HUD/name resources, and the 59-stage ROUND/FIGHT presentation are
+also active. Presentation uses a persistent scaled backbuffer with a single
+final window copy, eliminating the live black clear that caused flicker. The
+gameplay/class-method audit is still being used to replace provisional movement
+timing, character combo transitions, and secondary status-effect behavior before
+a preservation release is declared 1:1 complete.
 
 ## Reproducible Windows build
 

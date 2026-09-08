@@ -42,7 +42,7 @@ def main() -> None:
     parser.add_argument("output", type=Path)
     parser.add_argument(
         "--screen",
-        choices=("title", "credits", "select", "kode", "unlock", "match", "projectile", "cheat", "configuration"),
+        choices=("title", "credits", "select", "kode", "unlock", "fight", "match", "projectile", "cheat", "configuration"),
         default="credits",
     )
     args = parser.parse_args()
@@ -57,6 +57,15 @@ def main() -> None:
     if not window:
         process.terminate()
         raise SystemExit("Native window did not appear")
+    # The HWND is created before the embedded sprite/audio banks finish
+    # decoding. Wait until WinMain has shown it and entered normal dispatch so
+    # navigation and timing start from the same point as an interactive run.
+    ready_deadline = time.monotonic() + 12
+    while not user32.IsWindowVisible(window) and time.monotonic() < ready_deadline:
+        time.sleep(0.05)
+    if not user32.IsWindowVisible(window):
+        process.terminate()
+        raise SystemExit("Native window did not finish initialization")
 
     if args.screen == "credits":
         # Title selection begins on One Player; move to KREDITS and activate it.
@@ -67,9 +76,9 @@ def main() -> None:
         for _ in range(2):
             user32.SendMessageW(window, 0x0100, 0x28, 0)
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
-    elif args.screen in ("select", "match", "projectile", "cheat"):
+    elif args.screen in ("select", "fight", "match", "projectile", "cheat"):
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
-        if args.screen in ("match", "projectile", "cheat"):
+        if args.screen in ("fight", "match", "projectile", "cheat"):
             user32.SendMessageW(window, 0x0100, 0x0D, 0)
         if args.screen in ("projectile", "cheat"):
             user32.SetForegroundWindow(window)
@@ -80,13 +89,15 @@ def main() -> None:
             user32.keybd_event(0x12, 0, 2, 0)       # Alt up
             user32.keybd_event(0x11, 0, 2, 0)       # Ctrl up
         if args.screen == "projectile":
-            # Enable Infinite Super, leave the menu, and fire player one's attack.
+            # Enable Infinite Super, leave the menu, wait out the exact intro,
+            # and fire player one's original Super key.
             user32.SendMessageW(window, 0x0100, 0x28, 0)
             user32.SendMessageW(window, 0x0100, 0x28, 0)
             user32.SendMessageW(window, 0x0100, 0x0D, 0)
             user32.SendMessageW(window, 0x0100, 0x1B, 0)
-            user32.keybd_event(0x44, 0, 0, 0)
-            user32.keybd_event(0x44, 0, 2, 0)
+            time.sleep(6.2)
+            user32.keybd_event(0x34, 0, 0, 0)
+            user32.keybd_event(0x34, 0, 2, 0)
     elif args.screen in ("kode", "unlock"):
         user32.SendMessageW(window, 0x0100, 0x28, 0)
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
@@ -100,7 +111,12 @@ def main() -> None:
             user32.SendMessageW(window, 0x0104, 0x70, 1 << 29)
             user32.keybd_event(0x12, 0, 2, 0)
             user32.keybd_event(0x11, 0, 2, 0)
-    time.sleep(0.28 if args.screen == "projectile" else 0.12)
+    if args.screen == "fight":
+        time.sleep(3.2)
+    elif args.screen == "match":
+        time.sleep(6.2)
+    else:
+        time.sleep(0.28 if args.screen == "projectile" else 0.12)
     user32.UpdateWindow(window)
 
     rect = Rect()
