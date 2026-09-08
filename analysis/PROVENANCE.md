@@ -2,7 +2,7 @@
 
 ## Supplied archive
 
-- Path at acquisition: `C:\Users\kando\Downloads\Blood Pong.rar`
+- Supplied archive name: `Blood Pong.rar`
 - Size: 10,999,325 bytes
 - SHA-256: `75E154D2DD1F2D5A0289001192BD85E1A0191EC72F6741F0CAB84775E3BAE77A`
 - Container: RAR5, nine files, unencrypted
@@ -28,4 +28,3 @@ The original executable is retained only under ignored `analysis/originals/` and
 - Graphics by Brandon Kuroda
 - Music by the group Sour
 - Special thanks: Jeremy Andreasen, Derek Cheng, Austin Keys, Gary Kuroda, Mike Hirakami, Mike Holm, John Speedie, Eric Williams, and Ted "Toasty" Best
-
