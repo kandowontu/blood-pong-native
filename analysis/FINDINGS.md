@@ -110,8 +110,10 @@ is retained.
   Palm's four extra-ball trajectories, So Frio's rising/drop and mirrored ice
   forms, One Eye's moving double, Show Lin/Dawg Cau's giant effect, Omoh's
   accelerating lob, Pain's full-height apparition, and Dawg Cau's rising column.
-  Some secondary status semantics remain subject to semantic comparison as the
-  class-method audit progresses.
+  The shared dispatcher also preserves launch holds, per-type animation
+  cadences, repeated mode-12/13/15/16 adjustments, mode-14 boomerang bounds,
+  owner-following mode 23, mirrored mode 24, and the persistent type-3/type-21
+  first-impact paths.
 
 ## Input and match presentation
 
@@ -132,8 +134,9 @@ is retained.
   544x432 bounds and 30-point outer-wall damage, keeps the ball live after wall
   damage, and applies the exact 12x54 paddle gates and outgoing-angle branches.
   It no longer invents contact damage, Super gain, serve resets, or acceleration
-  on every return. The ten temporary ball statuses and second/decoy-ball kode
-  modes remain explicit audit items.
+  on every return. The ten temporary ball statuses and the normal secondary,
+  wall-only decoy, invisible, fast, crazy, and disabled-ball kode modes are
+  reconstructed in the native update loop.
 - `0x00413CF8` loads the type-2023 ROUND, digits 1–3, and FIGHT banks.
   `0x004141EC` advances them on a five-update cadence, swaps banks at stages 19
   and 37, holds the middle FIGHT frame during stages 43–49, and releases play at
@@ -176,6 +179,26 @@ is retained.
   then performs one final `BitBlt`; `WM_ERASEBKGND` remains suppressed. The game
   timer uses the 15.6 ms Windows cadence instead of allowing a requested 16 ms
   interval to quantize to two ticks on affected systems.
+- The four CPU movement callbacks at `0x004108A4`, `0x00410BA8`,
+  `0x00410E84`, and `0x00411290` are represented separately. The native state
+  retains the two low-tier approach/retreat accumulators and durations, the
+  25-pixel opponent-following band, the upper-tier 50..100-pixel interception
+  window, and `ball.vx - 1` horizontal speed matching. All sixteen recovered
+  character attack selectors and their tier-specific firing/Super cadences are
+  active.
+
+## Native release verification
+
+- `verify_embedded_resources.py` reports all 1,207 numeric game-data resources
+  present and byte-identical in the native executable.
+- `check_character_matrix.py` unlocks the roster through the hidden shortcut,
+  starts a native match as every fighter, executes one recovered component
+  recipe per fighter, toggles fullscreen, opens/closes the in-match cheat menu,
+  and rejects a nearly-black presented frame.
+- `check_presentation_stability.py` samples both windowed and fullscreen output
+  at high frequency and rejects any frame whose nearly-black pixels exceed 98%.
+- These live checks launch only the clean native reconstruction. The supplied
+  legacy executable remains static input to the analysis tools and is never run.
 
 ## Audio
 

@@ -1,5 +1,7 @@
 # Blood Pong native Windows preservation port
 
+Version 1.0.0
+
 This is a clean native Windows reconstruction of the 1998/1999 Monkey Byte Development release of **Blood Pong**, programmed and illustrated by Brandon Kuroda. The finished program will be one self-contained Windows GUI executable: no original executable, compatibility layer, installer, or loose runtime assets.
 
 ## Required compatibility behavior
@@ -45,15 +47,17 @@ All 29 versus messages and their recovered gameplay modifiers are active,
 including the normal secondary ball and wall-only decoy. The full-Super flag,
 five-update gauge drain, sixteen-entry fighter-to-effect map, and all ten
 temporary ball-status branches are also reconstructed. The gameplay/class-
-method audit remains the authority for closing the remaining upper-tier CPU
-interception nuances and final cross-character QA before a
-preservation release is declared 1:1 complete. Fighter-specific projectile and
+method audit and native release harness now cover every fighter before the
+preservation build is packaged. Fighter-specific projectile and
 outer-wall reaction pairs, plus all specialized projectile callbacks, now use
 the recovered constructor and state-machine behavior. The shared projectile
 path also preserves its launch holds, flight-bank cadences, repeated mode
-adjustments, boomerang persistence, and one-hit persistent effects. One-player CPU play uses
-the original four ladder thresholds and all sixteen character attack selectors,
-including simultaneous pairs and position-dependent projectile modes.
+adjustments, boomerang persistence, and one-hit persistent effects. One-player
+CPU play uses the original four ladder thresholds, the two recovered
+approach/retreat accumulator state machines, the upper-tier 50..100-pixel
+interception and speed-matching branches, and all sixteen character attack
+selectors, including simultaneous pairs and position-dependent projectile
+modes.
 
 ## Reproducible Windows build
 
@@ -66,8 +70,10 @@ cmake -S . -B build-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-msvc --config Release
 python tools/verify_embedded_resources.py analysis/extracted/manifest.json "build-msvc/bin/Blood Pong.exe"
 python tools/check_presentation_stability.py "build-msvc/bin/Blood Pong.exe"
+python tools/check_character_matrix.py "build-msvc/bin/Blood Pong.exe"
 python tools/audit_audio_resources.py analysis/extracted/type_2001_custom_2001 analysis/disassembly/AUDIO_RESOURCES.json analysis/disassembly/AUDIO_RESOURCES.md
 python tools/audit_combo_state_machines.py "analysis/originals/Blood Pong/Blood Pong.exe" analysis/disassembly/combo_recipes.json
+python tools/package_release.py "build-msvc/bin/Blood Pong.exe"
 ```
 
 The final executable imports only standard Windows system libraries

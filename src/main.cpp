@@ -357,8 +357,11 @@ struct App {
     std::uint32_t cpuAttackAccumulator{};
     std::uint32_t cpuSuperAccumulator{};
     std::uint32_t cpuHorizontalAccumulator{};
-    int cpuHorizontalTicks{};
-    int cpuHorizontalDirection{};
+    std::uint32_t cpuRetreatAccumulator{};
+    std::uint32_t cpuHorizontalTicks{};
+    std::uint32_t cpuRetreatTicks{};
+    bool cpuApproachBurst{};
+    bool cpuRetreatBurst{};
     std::uint64_t frameCounter{};
     bool fullscreen{};
     DWORD savedStyle{};
@@ -1489,8 +1492,11 @@ void beginRound() {
     g_app.cpuAttackAccumulator = 0;
     g_app.cpuSuperAccumulator = 0;
     g_app.cpuHorizontalAccumulator = 0;
+    g_app.cpuRetreatAccumulator = 0;
     g_app.cpuHorizontalTicks = 0;
-    g_app.cpuHorizontalDirection = 0;
+    g_app.cpuRetreatTicks = 0;
+    g_app.cpuApproachBurst = false;
+    g_app.cpuRetreatBurst = false;
     g_app.paddleAppearance = g_app.selectedCharacters;
     g_app.randomPaddleTicks = {};
     g_app.roundIntroStage = 0;
@@ -2148,59 +2154,153 @@ void updateCpuAttackDecision() {
 void updateCpuMovement() {
     const int tier = cpuDifficultyTier();
     const auto& ball = activeBallSprite();
+    const float ballWidth = static_cast<float>(ball ? ball.width : 16);
     const float ballHeight = static_cast<float>(ball ? ball.height : 16);
-    const float targetY = g_app.currentKode == VersusKode::ballDisabled
-        ? g_app.player1Y
-        : g_app.ballY + ballHeight * 0.5f - kFighterCollisionHeight * 0.5f;
-    const float differenceY = targetY - g_app.player2Y;
-    const float deadZone = tier == 0 ? 25.0f : (tier == 1 ? 18.0f : 6.0f);
-    float verticalSpeed = 8.0f;
+    const float ballLeft = g_app.ballX;
+    const float ballRight = ballLeft + ballWidth;
+    const float ballTop = g_app.ballY;
+    const float ballBottom = ballTop + ballHeight;
+    constexpr float baseMovement = 8.0f;   // fighter +0xE8/+0xEC
+    constexpr float turboMovement = 13.0f; // vertical field plus literal 5
 
-    if (tier < 2 && std::abs(differenceY) < 20.0f) {
-        // The first two callbacks use abs(ball.vy) when the ball overlaps the
-        // fighter's 20-pixel inner band, otherwise the fighter's eight-pixel
-        // base movement field.
-        verticalSpeed = std::max(1.0f, std::abs(g_app.ballVelocityY));
-    } else if (tier >= 2 && std::abs(differenceY) > 20.0f &&
-               g_app.turbo[1] >= 2 &&
-               g_app.currentKode != VersusKode::runDisabled) {
-        verticalSpeed = 13.0f;
-        g_app.turbo[1] -= 2;
-    } else {
-        g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
-    }
+    auto followOpponent = [&] {
+        // 0x00410A48 and 0x00410D41 compare the opposing collision rectangle
+        // against a 25-pixel band, not its centre point.
+        if (g_app.player1Y - 25.0f > g_app.player2Y) {
+            g_app.player2Y += baseMovement;
+        } else if (g_app.player1Y + kFighterCollisionHeight + 25.0f <
+                   g_app.player2Y + kFighterCollisionHeight) {
+            g_app.player2Y -= baseMovement;
+        }
+    };
 
-    if (std::abs(differenceY) > deadZone) {
-        g_app.player2Y += std::clamp(differenceY, -verticalSpeed, verticalSpeed);
-    }
+    auto trackBallVertically = [&](bool upperTier) {
+        const float cpuTop = g_app.player2Y;
+        const float cpuBottom = cpuTop + kFighterCollisionHeight;
+        int direction = 0;
+        float movement = std::abs(g_app.ballVelocityY);
+
+        if (ballBottom < cpuTop + 25.0f) {
+            direction = -1;
+            // The callbacks compare the signed edge delta with 20. The
+            // literal behavior (including a possible zero-pixel step at the
+            // top of a parabola) is preserved here.
+            if (ballTop - cpuTop >= 20.0f) movement = baseMovement;
+        } else if (ballTop > cpuBottom - 25.0f) {
+            direction = 1;
+            if (ballBottom - cpuBottom >= 20.0f) movement = baseMovement;
+        }
+
+        if (direction == 0) return direction;
+        if (upperTier && movement == baseMovement && g_app.turbo[1] >= 2 &&
+            g_app.currentKode != VersusKode::runDisabled) {
+            movement = turboMovement;
+            g_app.turbo[1] -= 2;
+        } else {
+            g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
+        }
+        g_app.player2Y += movement * static_cast<float>(direction);
+        return direction;
+    };
 
     if (tier < 2) {
-        const std::uint32_t mask = tier == 0 ? 0xffu : 0x0fu;
-        const std::uint32_t threshold = tier == 0 ? 0x05dcu : 0x01f4u;
-        g_app.cpuHorizontalAccumulator += legacyRandom() & mask;
-        if (g_app.cpuHorizontalAccumulator > threshold) {
-            g_app.cpuHorizontalAccumulator = 0;
-            g_app.cpuHorizontalTicks = static_cast<int>(legacyRandom() & 0x0fu);
-            g_app.cpuHorizontalDirection = (legacyRandom() & 1u) == 0 ? -1 : 1;
-        }
-        if (g_app.cpuHorizontalTicks > 0) {
-            g_app.player2X += 8.0f * g_app.cpuHorizontalDirection;
-            --g_app.cpuHorizontalTicks;
+        if (g_app.ballVelocityX > 0.0f) {
+            // 0x004108F5/0x00410BF9 cancel the retreat state as soon as the
+            // ball turns back toward the CPU.
+            g_app.cpuRetreatBurst = false;
+            if (tier == 0) {
+                if (!g_app.cpuApproachBurst) {
+                    g_app.cpuHorizontalAccumulator += legacyRandom() & 0xffu;
+                    if (g_app.cpuHorizontalAccumulator > 0x05dcu) {
+                        g_app.cpuHorizontalAccumulator = 0;
+                        g_app.cpuApproachBurst = true;
+                        g_app.cpuHorizontalTicks = legacyRandom() & 0x0fu;
+                    }
+                }
+            } else {
+                // Tier two continues charging this counter during a burst.
+                g_app.cpuHorizontalAccumulator += legacyRandom() & 0x0fu;
+                if (g_app.cpuHorizontalAccumulator > 0x01f4u) {
+                    g_app.cpuHorizontalAccumulator = 0;
+                    g_app.cpuApproachBurst = true;
+                    g_app.cpuHorizontalTicks = legacyRandom() & 0x0fu;
+                }
+            }
+
+            const int verticalDirection = trackBallVertically(false);
+            // The original only performs the approach step from its two
+            // vertical-tracking branches. It moves right if the ball has
+            // passed the paddle or the timed d5 burst is armed.
+            if (verticalDirection != 0 &&
+                (ballLeft > g_app.player2X + kFighterCollisionWidth ||
+                 g_app.cpuApproachBurst)) {
+                g_app.player2X += baseMovement;
+                --g_app.cpuHorizontalTicks; // DWORD wrap is an original quirk.
+                if (g_app.cpuHorizontalTicks == 0) g_app.cpuApproachBurst = false;
+            }
         } else {
-            const float home = tier == 0 ? 482.0f :
-                (g_app.ballVelocityX > 0.0f
-                    ? std::clamp(g_app.ballX + 80.0f, 344.0f, 482.0f)
-                    : 482.0f);
-            g_app.player2X += std::clamp(home - g_app.player2X, -8.0f, 8.0f);
+            followOpponent();
+            g_app.cpuApproachBurst = false;
+            if (tier == 0) {
+                if (!g_app.cpuRetreatBurst) {
+                    g_app.cpuRetreatAccumulator += legacyRandom() & 0xffu;
+                    if (g_app.cpuRetreatAccumulator > 0x05dcu) {
+                        g_app.cpuRetreatAccumulator = 0;
+                        g_app.cpuRetreatBurst = true;
+                        g_app.cpuRetreatTicks = legacyRandom() & 0x0fu;
+                    }
+                }
+                if (g_app.cpuRetreatTicks > 0) {
+                    g_app.player2X -= baseMovement;
+                    --g_app.cpuRetreatTicks;
+                }
+            } else {
+                // Callback 0x00410BA8 has no duration counter on this path:
+                // once d4 is armed, it retreats until the ball approaches.
+                g_app.cpuRetreatAccumulator += legacyRandom() & 0x0fu;
+                if (g_app.cpuRetreatAccumulator > 0x01f4u) {
+                    g_app.cpuRetreatAccumulator = 0;
+                    g_app.cpuRetreatBurst = true;
+                }
+                if (g_app.cpuRetreatBurst) g_app.player2X -= baseMovement;
+            }
+            g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
         }
+        return;
+    }
+
+    if (g_app.ballVelocityX <= 0.0f) {
+        // The normal AC=0 path in 0x0041116F/0x0041170D retreats by the
+        // horizontal movement field, follows the opponent inside a 25-pixel
+        // vertical band, and immediately offers the character attack callback.
+        g_app.player2X -= baseMovement;
+        followOpponent();
+        g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
+        return;
+    }
+
+    const int verticalDirection = trackBallVertically(true);
+    if (verticalDirection == 0) return;
+
+    const float cpuRight = g_app.player2X + kFighterCollisionWidth;
+    if (ballLeft > cpuRight) {
+        g_app.player2X += baseMovement;
+        return;
+    }
+
+    // 0x00410FCF..0x00411167 and the mirrored fourth-tier blocks use a
+    // 50..100-pixel interception window. Within it the paddle matches the
+    // ball's horizontal speed minus one; outside it the ball's vertical edge
+    // decides between that intercept and an eight-pixel retreat.
+    const float distance = g_app.player2X - ballRight;
+    const bool inInterceptionWindow = distance > 50.0f && distance < 100.0f;
+    const bool ballStillOutside = verticalDirection < 0
+        ? ballTop < g_app.player2Y
+        : ballBottom > g_app.player2Y + kFighterCollisionHeight;
+    if (inInterceptionWindow || ballStillOutside) {
+        g_app.player2X += g_app.ballVelocityX - 1.0f;
     } else {
-        // The upper callbacks advance or retreat in both axes and use the
-        // ball rectangle directly. Tier four predicts farther into the
-        // approaching path than tier three.
-        const float lead = g_app.ballVelocityX > 0.0f ? (tier == 3 ? 28.0f : 44.0f)
-                                                      : 100.0f;
-        const float targetX = std::clamp(g_app.ballX + lead, 344.0f, 532.0f);
-        g_app.player2X += std::clamp(targetX - g_app.player2X, -8.0f, 8.0f);
+        g_app.player2X -= baseMovement;
     }
 }
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(BloodPongNative VERSION 0.1.0 LANGUAGES CXX RC)
+project(BloodPongNative VERSION 1.0.0 LANGUAGES CXX RC)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 execute_process(

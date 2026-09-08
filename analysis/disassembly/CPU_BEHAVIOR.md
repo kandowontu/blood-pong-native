@@ -11,11 +11,24 @@ callbacks from ladder difficulty value `0x004366AC`:
 | 6..8 | `0x00411290` | direct character-callback opportunities with the most aggressive interception path | immediate |
 
 All four move in both axes. The first two use `abs(ball.vy)` inside the
-20-pixel vertical band, otherwise the fighter's eight-pixel movement field.
-The upper two use the five-pixel Turbo addition on interception branches. If
-the active ball has no horizontal velocity, the low tiers follow the opposing
-fighter vertically. The secret-realm constructor forces the fourth callback
-for fighter IDs 6, 7, 10, and 11.
+20-pixel vertical edge test, otherwise the fighter's eight-pixel movement
+field. While the ball is approaching, they only take a horizontal approach
+step from one of the two vertical-tracking branches. The first tier accumulates
+`rand() & 255` past 1500 for separately timed rightward and leftward bursts;
+the second accumulates `rand() & 15` past 500, keeps the rightward duration,
+and makes its leftward retreat persistent until the ball turns around. If the
+ball has no positive horizontal velocity, both follow the opposing fighter
+inside a 25-pixel band.
+
+The upper two add five pixels to the eight-pixel vertical field on their Turbo
+interception branches. Once the ball overlaps the CPU horizontally, they
+measure `cpu.left - ball.right`: distances strictly between 50 and 100 pixels
+advance by `ball.vx - 1`; outside that range, the relevant ball vertical edge
+selects the same speed-match or an eight-pixel retreat. Their ordinary
+outgoing-ball path retreats eight pixels and follows the opponent vertically.
+The fourth callback layers extra animation/contact-state responses over the
+same geometric interception blocks. The secret-realm constructor forces that
+fourth callback for fighter IDs 6, 7, 10, and 11.
 
 ## Character attack selectors
 
@@ -42,8 +55,10 @@ fighter offsets `+0x144`, `+0x1FC`, `+0x2B4`, and `+0x36C`.
 | Mai Lai | component 3 at the far wall; otherwise component 1, falling back to 2 while 1 is active |
 | Baka | components 1+2 together, with modes 12/13 selected from vertical relation or a random aligned branch |
 
-The native port preserves the four threshold tiers, paired launches, component
-mode overrides, vertical/far-wall guards, and per-fighter random dispatch.
+The native port preserves the four threshold tiers, both low-tier accumulator
+and burst state machines, the upper-tier 50..100-pixel interception window,
+`ball.vx - 1` speed matching, paired launches, component mode overrides,
+vertical/far-wall guards, and per-fighter random dispatch.
 Transient original animation-state guards are represented by the native damage
 and freeze reaction states; this avoids launching new attacks through a target
 reaction without inventing inaccessible legacy object state.
