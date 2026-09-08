@@ -35,6 +35,75 @@ constexpr int kFighterCollisionWidth = 12;
 constexpr int kFighterCollisionHeight = 54;
 constexpr COLORREF kTransparent = RGB(0, 0, 0);
 
+namespace VersusKode {
+constexpr int ultimateUnlock = 111999;
+constexpr int tinyBall = 110110;
+constexpr int slowBall = 654321;
+constexpr int fastBall = 123456;
+constexpr int projectileHalfDamage = 421421;
+constexpr int projectileDoubleDamage = 124124;
+constexpr int ballHalfDamage = 222222;
+constexpr int ballDoubleDamage = 888888;
+constexpr int ballDisabled = 989121;
+constexpr int invisibleBall = 100100;
+constexpr int secondaryBall = 202202;
+constexpr int decoyBall = 414141;
+constexpr int crazyBall = 228882;
+constexpr int mammothBall = 990990;
+constexpr int giantBall = 880880;
+constexpr int runDisabled = 604406;
+constexpr int projectilesDisabled = 510510;
+constexpr int hiddenBars = 123987;
+constexpr int reverseControls = 35035;
+constexpr int randomPaddles = 555555;
+constexpr int invisiblePaddles = 711117;
+constexpr int player1HalfEnergy = 33000;
+constexpr int player2HalfEnergy = 33;
+constexpr int bothPlayersHalfEnergy = 33033;
+constexpr int player1QuarterEnergy = 707000;
+constexpr int player2QuarterEnergy = 707;
+constexpr int bothPlayersQuarterEnergy = 707707;
+}  // namespace VersusKode
+
+struct VersusKodeDefinition {
+    int value{};
+    std::string_view message;
+};
+
+// The complete message dispatcher at 0x00413EAC, in display order.
+constexpr std::array<VersusKodeDefinition, 30> kVersusKodes{{
+    {22067, "WHAT ELSE SHOULD I BE...ALL APOLOGIES"},
+    {123926, "THERE IS NO KNOWLEDGE THAT IS NOT POWER"},
+    {82397, "BE HERE NOW"},
+    {VersusKode::tinyBall, "TINY BALL"},
+    {VersusKode::slowBall, "SLOW BALL"},
+    {VersusKode::fastBall, "FAST BALL"},
+    {VersusKode::projectileHalfDamage, "PROJECTILE HALF DAMAGE"},
+    {VersusKode::projectileDoubleDamage, "PROJECTILE DOUBLE DAMAGE"},
+    {VersusKode::ballHalfDamage, "BALL HALF DAMAGE"},
+    {VersusKode::ballDoubleDamage, "BALL DOUBLE DAMAGE"},
+    {VersusKode::ballDisabled, "BALL DISABLED"},
+    {VersusKode::invisibleBall, "INVISIBLE BALL"},
+    {VersusKode::secondaryBall, "SECONDARY BALL"},
+    {VersusKode::decoyBall, "DECOY BALL"},
+    {VersusKode::crazyBall, "CRAZY BALL"},
+    {VersusKode::mammothBall, "MAMMOTH BALL"},
+    {VersusKode::giantBall, "GIANT BALL"},
+    {VersusKode::runDisabled, "RUN DISABLED"},
+    {VersusKode::projectilesDisabled, "PROJECTILES DISABLED"},
+    {VersusKode::hiddenBars, "HIDDEN BARS"},
+    {VersusKode::reverseControls, "REVERSE KONTROLS"},
+    {VersusKode::randomPaddles, "RANDOM PADDLES"},
+    {VersusKode::invisiblePaddles, "INVISIBLE PADDLES"},
+    {VersusKode::player1HalfEnergy, "PLAYER 1 HALF ENERGY"},
+    {VersusKode::player2HalfEnergy, "PLAYER 2 HALF ENERGY"},
+    {VersusKode::bothPlayersHalfEnergy, "BOTH PLAYERS HALF ENERGY"},
+    {VersusKode::player1QuarterEnergy, "PLAYER 1 QUARTER ENERGY"},
+    {VersusKode::player2QuarterEnergy, "PLAYER 2 QUARTER ENERGY"},
+    {VersusKode::bothPlayersQuarterEnergy, "BOTH PLAYERS QUARTER ENERGY"},
+    {0, ""},
+}};
+
 enum class Screen {
     title, credits, characterSelect, versusKode, match, cheatMenu, configuration,
     continuePrompt, gameOver
@@ -143,7 +212,8 @@ struct App {
     std::array<std::array<SpriteAsset, 24>, 16> paddleFrames{};
     std::array<std::vector<SpriteAsset>, 25> projectileTypeFrames{};
     std::array<SpriteAsset, 16> fighterNameSprites{};
-    SpriteAsset ballSprite{};
+    // Type-2004 IDs 500..503 are the normal, giant, mammoth and tiny balls.
+    std::array<SpriteAsset, 4> ballSprites{};
     SpriteAsset roundWinMarker{};
     SpriteAsset healthFrame{};
     SpriteAsset turboFrame{};
@@ -197,6 +267,7 @@ struct App {
     int continueCountdown{9};
     int continueCountdownTicks{};
     std::array<int, 6> kodeDigits{};
+    int currentKode{};
     bool allContentUnlocked{};
     bool soundEnabled{true};
     bool vibrationEnabled{true};
@@ -224,6 +295,15 @@ struct App {
     int ballBaseSpeed{kDefaultBallSpeed};
     int ballDamage{kDefaultBallDamage};
     std::array<bool, 2> ballCollisionArmed{true, true};
+    int ballCrazyTicks{};
+    bool secondaryBallActive{};
+    float secondaryBallX{264.0f};
+    float secondaryBallY{208.0f};
+    float secondaryBallVelocityX{-5.0f};
+    float secondaryBallVelocityY{5.0f};
+    std::array<bool, 2> secondaryBallCollisionArmed{true, true};
+    std::array<int, 2> paddleAppearance{0, 1};
+    std::array<int, 2> randomPaddleTicks{};
     std::array<int, 2> score{};
     std::array<int, 2> turbo{kMaximumTurbo, kMaximumTurbo};
     int roundNumber{1};
@@ -841,6 +921,19 @@ void renderCpuLadder() {
     drawTextLine("ENTER TO FIGHT", kArtY + 390, 12, RGB(205, 205, 210), FW_NORMAL);
 }
 
+int kodeFromDigits() {
+    int value{};
+    for (int digit : g_app.kodeDigits) value = value * 10 + digit;
+    return value;
+}
+
+std::string_view versusKodeMessage(int value) {
+    for (const auto& kode : kVersusKodes) {
+        if (kode.value == value) return kode.message;
+    }
+    return {};
+}
+
 void renderVersusKode() {
     if (g_app.playerCount == 1) {
         renderCpuLadder();
@@ -861,8 +954,12 @@ void renderVersusKode() {
     }
     SelectObject(g_app.backDc, oldFont);
     DeleteObject(digitFont);
-    if (g_app.allContentUnlocked) {
+    const int enteredKode = kodeFromDigits();
+    const auto message = versusKodeMessage(enteredKode);
+    if (enteredKode == VersusKode::ultimateUnlock && g_app.allContentUnlocked) {
         drawTextLine("ULTIMATE KODE ACCEPTED", 400, 15, RGB(55, 235, 95));
+    } else if (!message.empty()) {
+        drawTextLine(message, 400, 12, RGB(225, 225, 230));
     } else {
         drawTextLine("VERSUS KODE", 400, 15, RGB(210, 210, 215));
     }
@@ -879,7 +976,7 @@ void drawGaugeFill(int x, int y, int width, int height, int value, int maximum,
 }
 
 const SpriteAsset& activePaddleSprite(int player) {
-    const int character = g_app.selectedCharacters[player];
+    const int character = g_app.paddleAppearance[static_cast<std::size_t>(player)];
     if (g_app.animationTicks[player] > 0) {
         const auto& frame = g_app.paddleFrames[character][g_app.animationFrame[player] % 24];
         if (frame) return frame;
@@ -887,10 +984,17 @@ const SpriteAsset& activePaddleSprite(int player) {
     return g_app.standingPaddles[character];
 }
 
+const SpriteAsset& activeBallSprite() {
+    if (g_app.currentKode == VersusKode::tinyBall) return g_app.ballSprites[3];
+    if (g_app.currentKode == VersusKode::mammothBall) return g_app.ballSprites[2];
+    if (g_app.currentKode == VersusKode::giantBall) return g_app.ballSprites[1];
+    return g_app.ballSprites[0];
+}
+
 const SpriteAsset& activeProjectileSprite(const Projectile& projectile) {
     static const SpriteAsset empty{};
     if (projectile.originalType == 8 || projectile.originalType == 11) {
-        return g_app.standingPaddles[g_app.selectedCharacters[static_cast<std::size_t>(
+        return g_app.standingPaddles[g_app.paddleAppearance[static_cast<std::size_t>(
             projectile.owner)]];
     }
     if (projectile.originalType < 0 || projectile.originalType >=
@@ -913,22 +1017,35 @@ void renderMatch() {
     drawBitmap(g_app.matchBackdrops[static_cast<std::size_t>(g_app.matchStage)], kArtX, kArtY);
     const auto& leftPaddle = activePaddleSprite(0);
     const auto& rightPaddle = activePaddleSprite(1);
-    drawSprite(leftPaddle, kArtX + static_cast<int>(g_app.player1X),
-               kArtY + static_cast<int>(g_app.player1Y));
-    drawSprite(rightPaddle, kArtX + static_cast<int>(g_app.player2X),
-               kArtY + static_cast<int>(g_app.player2Y), true);
+    if (g_app.currentKode != VersusKode::invisiblePaddles) {
+        drawSprite(leftPaddle, kArtX + static_cast<int>(g_app.player1X),
+                   kArtY + static_cast<int>(g_app.player1Y));
+        drawSprite(rightPaddle, kArtX + static_cast<int>(g_app.player2X),
+                   kArtY + static_cast<int>(g_app.player2Y), true);
+    }
     for (const auto& projectile : g_app.projectiles) {
         if (!projectile.active) continue;
         const auto& sprite = activeProjectileSprite(projectile);
         drawSprite(sprite, kArtX + static_cast<int>(projectile.x),
                    kArtY + static_cast<int>(projectile.y), projectile.owner == 1);
     }
-    drawSprite(g_app.ballSprite, kArtX + static_cast<int>(g_app.ballX),
-               kArtY + static_cast<int>(g_app.ballY));
+    const bool showBall = !g_app.roundIntroActive &&
+        g_app.currentKode != VersusKode::ballDisabled &&
+        g_app.currentKode != VersusKode::invisibleBall;
+    if (showBall) {
+        const auto& ball = activeBallSprite();
+        drawSprite(ball, kArtX + static_cast<int>(g_app.ballX),
+                   kArtY + static_cast<int>(g_app.ballY));
+        if (g_app.secondaryBallActive) {
+            drawSprite(ball, kArtX + static_cast<int>(g_app.secondaryBallX),
+                       kArtY + static_cast<int>(g_app.secondaryBallY));
+        }
+    }
 
     // The original HUD resources are 400/401/402/403 in type 2004.  Their
     // frame geometry and fixed 544x432 coordinates are preserved here; only
     // the mutable interiors are painted before the labels are overlaid.
+    if (g_app.currentKode != VersusKode::hiddenBars) {
     constexpr int leftHealthX = kArtX + 50;
     constexpr int rightHealthX = kArtX + 302;
     constexpr int healthY = kArtY + 50;
@@ -975,6 +1092,7 @@ void renderMatch() {
     }
     for (int win = 0; win < std::min(2, g_app.score[1]); ++win) {
         drawSprite(g_app.roundWinMarker, kArtX + 284 - win * 40, kArtY + 20);
+    }
     }
 
     if (g_app.roundIntroActive && g_app.roundIntroStage > 0) {
@@ -1214,11 +1332,15 @@ void activateTitleSelection() {
 }
 
 void resetBall() {
-    g_app.ballX = 264.0f;
-    g_app.ballY = 208.0f;
-    g_app.ballBaseSpeed = kDefaultBallSpeed;
-    g_app.ballDamage = kDefaultBallDamage;
+    const auto& sprite = activeBallSprite();
+    g_app.ballX = 272.0f - static_cast<float>(sprite.width / 2);
+    g_app.ballY = 216.0f - static_cast<float>(sprite.height / 2);
+    g_app.ballBaseSpeed = g_app.currentKode == VersusKode::fastBall ? 8
+        : (g_app.currentKode == VersusKode::slowBall ? 4 : kDefaultBallSpeed);
+    g_app.ballDamage = g_app.currentKode == VersusKode::ballDoubleDamage ? 60
+        : (g_app.currentKode == VersusKode::ballHalfDamage ? 15 : kDefaultBallDamage);
     g_app.ballCollisionArmed = {true, true};
+    g_app.ballCrazyTicks = 0;
     // 0x00412B44 and 0x00412B5A call GetTickCount independently and use bit
     // zero to choose the sign of each five-pixel component.
     g_app.ballVelocityX = (GetTickCount() & 1) != 0
@@ -1227,6 +1349,15 @@ void resetBall() {
     g_app.ballVelocityY = (GetTickCount() & 1) != 0
         ? -static_cast<float>(g_app.ballBaseSpeed)
         : static_cast<float>(g_app.ballBaseSpeed);
+    g_app.secondaryBallActive = g_app.currentKode == VersusKode::secondaryBall ||
+        g_app.currentKode == VersusKode::decoyBall;
+    g_app.secondaryBallX = g_app.ballX;
+    g_app.secondaryBallY = g_app.ballY;
+    g_app.secondaryBallVelocityX = -g_app.ballVelocityX;
+    g_app.secondaryBallVelocityY = (GetTickCount() & 1) != 0
+        ? -static_cast<float>(g_app.ballBaseSpeed)
+        : static_cast<float>(g_app.ballBaseSpeed);
+    g_app.secondaryBallCollisionArmed = {true, true};
 }
 
 void beginRound() {
@@ -1238,6 +1369,20 @@ void beginRound() {
     g_app.player2X = 482.0f;
     g_app.player2Y = 189.0f;
     g_app.health = {kMaximumHealth, kMaximumHealth};
+    if (g_app.currentKode == VersusKode::player1HalfEnergy ||
+        g_app.currentKode == VersusKode::bothPlayersHalfEnergy) {
+        g_app.health[0] >>= 1;
+    } else if (g_app.currentKode == VersusKode::player1QuarterEnergy ||
+               g_app.currentKode == VersusKode::bothPlayersQuarterEnergy) {
+        g_app.health[0] >>= 2;
+    }
+    if (g_app.currentKode == VersusKode::player2HalfEnergy ||
+        g_app.currentKode == VersusKode::bothPlayersHalfEnergy) {
+        g_app.health[1] >>= 1;
+    } else if (g_app.currentKode == VersusKode::player2QuarterEnergy ||
+               g_app.currentKode == VersusKode::bothPlayersQuarterEnergy) {
+        g_app.health[1] >>= 2;
+    }
     g_app.turbo = {kMaximumTurbo, kMaximumTurbo};
     g_app.super = {};
     g_app.animationFrame = {};
@@ -1247,6 +1392,8 @@ void beginRound() {
     g_app.comboTimeout = {};
     g_app.frozenTicks = {};
     g_app.projectiles = {};
+    g_app.paddleAppearance = g_app.selectedCharacters;
+    g_app.randomPaddleTicks = {};
     g_app.roundIntroStage = 0;
     g_app.roundIntroDelay = 0;
     g_app.roundIntroActive = true;
@@ -1257,6 +1404,21 @@ void beginRound() {
 }
 
 void beginMatch() {
+    if (g_app.playerCount == 2) {
+        const int enteredKode = kodeFromDigits();
+        if (enteredKode == VersusKode::ultimateUnlock) {
+            g_app.allContentUnlocked = true;
+            g_app.currentKode = 0;
+        } else if (enteredKode == VersusKode::randomPaddles &&
+                   !g_app.allContentUnlocked) {
+            // 0x0040145D clears 555555 in the unregistered/shareware state.
+            g_app.currentKode = 0;
+        } else {
+            g_app.currentKode = enteredKode;
+        }
+    } else {
+        g_app.currentKode = 0;
+    }
     g_app.score = {};
     g_app.roundNumber = 1;
     g_app.fatalityPerformed = false;
@@ -1338,6 +1500,10 @@ void advanceAfterMatch() {
 
 bool handleSecretShortcut() {
     if (g_app.screen == Screen::versusKode) {
+        // The original special path compares the six-digit value to 111999.
+        // Populate that exact visible kode before enabling the reconstructed
+        // full-version flag; no on-screen text advertises this shortcut.
+        g_app.kodeDigits = {1, 1, 1, 9, 9, 9};
         g_app.allContentUnlocked = true;
         g_app.cheats[5] = true;
         invalidate();
@@ -1484,6 +1650,12 @@ void launchComponent(int player, int componentIndex) {
     if (componentIndex < 1 || componentIndex > 4) return;
     const auto& component = kComponents[static_cast<std::size_t>(character)]
                                        [static_cast<std::size_t>(componentIndex - 1)];
+    if (g_app.currentKode == VersusKode::projectilesDisabled) {
+        g_app.animationTicks[player] = 48;
+        g_app.animationFrame[player] = 12;
+        g_app.attackCooldown[player] = 28;
+        return;
+    }
     if (component.originalType == 0) {
         // Type zero has no independent sprite object in the original. It still
         // enters the fighter's special animation, so retain that visible state.
@@ -1499,6 +1671,11 @@ void launchComponent(int player, int componentIndex) {
         projectile.hasHit = false;
         projectile.owner = player;
         projectile.damage = component.damage;
+        if (g_app.currentKode == VersusKode::projectileDoubleDamage) {
+            projectile.damage <<= 1;
+        } else if (g_app.currentKode == VersusKode::projectileHalfDamage) {
+            projectile.damage >>= 1;
+        }
         projectile.originalType = component.originalType;
         projectile.variant = component.variant;
         projectile.mode = component.delay;
@@ -1819,6 +1996,111 @@ void updateProjectiles() {
     }
 }
 
+void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
+                      std::array<bool, 2>& collisionArmed, bool wallOnly) {
+    const auto& sprite = activeBallSprite();
+    const int ballWidth = sprite ? sprite.width : 16;
+    const int ballHeight = sprite ? sprite.height : 16;
+    const float timeScale = g_app.cheats[4] ? 0.45f : 1.0f;
+    x += velocityX * timeScale;
+    y += velocityY * timeScale;
+
+    if (wallOnly) {
+        // The decoy callback at 0x00413868 reflects at every edge, makes no
+        // paddle tests, and plays the normal bounce cue only on vertical walls.
+        if (y < 0.0f || y + ballHeight > static_cast<float>(kPlayfieldHeight)) {
+            y = std::clamp(y, 0.0f, static_cast<float>(kPlayfieldHeight - ballHeight));
+            velocityY = -velocityY;
+            playEffect(g_app.ballBounceSound, 0.65f);
+        }
+        if (x < 0.0f || x + ballWidth > static_cast<float>(kPlayfieldWidth)) {
+            x = std::clamp(x, 0.0f, static_cast<float>(kPlayfieldWidth - ballWidth));
+            velocityX = -velocityX;
+        }
+        return;
+    }
+
+    // 0x004130AF and 0x004131CB treat the left and right playfield edges as
+    // damaging walls. The ball rebounds in place and stays in play.
+    if (x + ballWidth > static_cast<float>(kPlayfieldWidth)) {
+        x = static_cast<float>(kPlayfieldWidth - ballWidth);
+        velocityX = -velocityX;
+        collisionArmed = {true, true};
+        playEffect(g_app.ballHitSound, 0.75f);
+        damagePlayer(1, g_app.ballDamage);
+        if (g_app.matchPhase != MatchPhase::playing) return;
+    } else if (x < 0.0f) {
+        x = 0.0f;
+        velocityX = -velocityX;
+        collisionArmed = {true, true};
+        playEffect(g_app.ballHitSound, 0.75f);
+        damagePlayer(0, g_app.ballDamage);
+        if (g_app.matchPhase != MatchPhase::playing) return;
+    }
+
+    if (y < 0.0f || y + ballHeight > static_cast<float>(kPlayfieldHeight)) {
+        y = std::clamp(y, 0.0f, static_cast<float>(kPlayfieldHeight - ballHeight));
+        velocityY = -velocityY;
+        collisionArmed = {true, true};
+        playEffect(g_app.ballBounceSound, 0.65f);
+    }
+
+    const float leftEdge = g_app.player1X + kFighterCollisionWidth;
+    const float rightEdge = g_app.player2X;
+    const bool touchesPlayer1 = x < leftEdge && x + ballWidth >= g_app.player1X &&
+        y + ballHeight >= g_app.player1Y &&
+        y < g_app.player1Y + kFighterCollisionHeight;
+    if (touchesPlayer1 && collisionArmed[0]) {
+        collisionArmed[0] = false;
+        collisionArmed[1] = true;
+        playEffect(g_app.ballHitSound, 0.75f);
+        const float base = static_cast<float>(g_app.ballBaseSpeed);
+        if (velocityX < 0.0f) {
+            if (g_app.player1Y + 20.0f > y + ballHeight) {
+                velocityX = base - 1.0f;
+                velocityY = -(base + 1.0f);
+            } else if (g_app.player1Y + kFighterCollisionHeight - 20.0f < y) {
+                velocityX = base - 1.0f;
+                velocityY = base + 1.0f;
+            } else {
+                velocityX = base;
+                velocityY = velocityY > 0.0f ? base : -base;
+            }
+        } else {
+            velocityX = base + 1.0f;
+            const float reduced = base - 1.0f;
+            velocityY = velocityY > 0.0f ? -reduced : reduced;
+        }
+    }
+
+    const bool touchesPlayer2 = x + ballWidth > rightEdge &&
+        x <= g_app.player2X + kFighterCollisionWidth &&
+        y + ballHeight >= g_app.player2Y &&
+        y < g_app.player2Y + kFighterCollisionHeight;
+    if (touchesPlayer2 && collisionArmed[1]) {
+        collisionArmed[1] = false;
+        collisionArmed[0] = true;
+        playEffect(g_app.ballHitSound, 0.75f);
+        const float base = static_cast<float>(g_app.ballBaseSpeed);
+        if (velocityX > 0.0f) {
+            if (g_app.player2Y + 20.0f > y + ballHeight) {
+                velocityX = -(base - 1.0f);
+                velocityY = -(base + 1.0f);
+            } else if (g_app.player2Y + kFighterCollisionHeight - 20.0f < y) {
+                velocityX = -(base - 1.0f);
+                velocityY = base + 1.0f;
+            } else {
+                velocityX = -base;
+                velocityY = velocityY > 0.0f ? base : -base;
+            }
+        } else {
+            velocityX = -(base + 1.0f);
+            const float reduced = base - 1.0f;
+            velocityY = velocityY > 0.0f ? -reduced : reduced;
+        }
+    }
+}
+
 void updateMatch() {
     if (g_app.screen != Screen::match) return;
     ++g_app.frameCounter;
@@ -1914,12 +2196,17 @@ void updateMatch() {
         if (GetAsyncKeyState('W') & 0x8000) player1MoveY -= 1.0f;
         if (GetAsyncKeyState('S') & 0x8000) player1MoveY += 1.0f;
     }
+    if (g_app.currentKode == VersusKode::reverseControls) {
+        player1MoveX = -player1MoveX;
+        player1MoveY = -player1MoveY;
+    }
     const bool player1Turbo = g_app.player1Pad >= 0
         ? (g_app.gamepads[static_cast<std::size_t>(g_app.player1Pad)].Gamepad.wButtons &
            XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0
         : (GetAsyncKeyState('5') & 0x8000) != 0;
     float player1VerticalSpeed = paddleSpeed;
-    if (player1Turbo && player1MoveY != 0.0f && g_app.turbo[0] >= 2) {
+    if (player1Turbo && player1MoveY != 0.0f && g_app.turbo[0] >= 2 &&
+        g_app.currentKode != VersusKode::runDisabled) {
         g_app.turbo[0] -= 2;
         player1VerticalSpeed += turboVerticalBoost;
     } else if (!player1Turbo) {
@@ -1941,12 +2228,17 @@ void updateMatch() {
             if (GetAsyncKeyState(VK_UP) & 0x8000) player2MoveY -= 1.0f;
             if (GetAsyncKeyState(VK_DOWN) & 0x8000) player2MoveY += 1.0f;
         }
+        if (g_app.currentKode == VersusKode::reverseControls) {
+            player2MoveX = -player2MoveX;
+            player2MoveY = -player2MoveY;
+        }
         const bool player2Turbo = g_app.player2Pad >= 0
             ? (g_app.gamepads[static_cast<std::size_t>(g_app.player2Pad)].Gamepad.wButtons &
                XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0
             : (GetAsyncKeyState('0') & 0x8000) != 0;
         float player2VerticalSpeed = paddleSpeed;
-        if (player2Turbo && player2MoveY != 0.0f && g_app.turbo[1] >= 2) {
+        if (player2Turbo && player2MoveY != 0.0f && g_app.turbo[1] >= 2 &&
+            g_app.currentKode != VersusKode::runDisabled) {
             g_app.turbo[1] -= 2;
             player2VerticalSpeed += turboVerticalBoost;
         } else if (!player2Turbo) {
@@ -1974,6 +2266,19 @@ void updateMatch() {
     g_app.player2X = std::clamp(g_app.player2X, 344.0f, 532.0f);
     g_app.player1Y = std::clamp(g_app.player1Y, 0.0f, 378.0f);
     g_app.player2Y = std::clamp(g_app.player2Y, 0.0f, 378.0f);
+    if (g_app.currentKode == VersusKode::randomPaddles) {
+        const bool componentsIdle = std::none_of(
+            g_app.projectiles.begin(), g_app.projectiles.end(),
+            [](const Projectile& projectile) { return projectile.active; });
+        for (int player = 0; player < 2; ++player) {
+            if (++g_app.randomPaddleTicks[static_cast<std::size_t>(player)] > 400 &&
+                componentsIdle) {
+                g_app.randomPaddleTicks[static_cast<std::size_t>(player)] = 0;
+                g_app.paddleAppearance[static_cast<std::size_t>(player)] =
+                    static_cast<int>(GetTickCount() & 0x0f);
+            }
+        }
+    }
     for (int attack = 0; attack < 3; ++attack) {
         const auto button = static_cast<CombatButton>(attack);
         if (combatButtonPressed(0, button)) {
@@ -2013,105 +2318,32 @@ void updateMatch() {
         invalidate();
         return;
     }
-    const float timeScale = g_app.cheats[4] ? 0.45f : 1.0f;
-    g_app.ballX += g_app.ballVelocityX * timeScale;
-    g_app.ballY += g_app.ballVelocityY * timeScale;
-    const int ballWidth = g_app.ballSprite ? g_app.ballSprite.width : 16;
-    const int ballHeight = g_app.ballSprite ? g_app.ballSprite.height : 16;
-
-    // 0x004130AF and 0x004131CB treat the left and right playfield edges as
-    // damaging walls. The ball rebounds in place and stays in play; it is not
-    // reset after a point. Damage is the constructor's default 0x1e.
-    if (g_app.ballX + ballWidth > static_cast<float>(kPlayfieldWidth)) {
-        g_app.ballX = static_cast<float>(kPlayfieldWidth - ballWidth);
-        g_app.ballVelocityX = -g_app.ballVelocityX;
-        g_app.ballCollisionArmed = {true, true};
-        playEffect(g_app.ballHitSound, 0.75f);
-        damagePlayer(1, g_app.ballDamage);
+    if (g_app.currentKode != VersusKode::ballDisabled) {
+        if (g_app.currentKode == VersusKode::crazyBall && ++g_app.ballCrazyTicks >= 6) {
+            g_app.ballCrazyTicks = 0;
+            const int horizontalMagnitude = 2 + static_cast<int>(GetTickCount() & 7);
+            g_app.ballVelocityX = g_app.ballVelocityX > 0.0f
+                ? static_cast<float>(horizontalMagnitude)
+                : -static_cast<float>(horizontalMagnitude);
+            const bool verticalPositive = (GetTickCount() & 1) != 0;
+            const int verticalMagnitude = 2 + static_cast<int>(GetTickCount() & 7);
+            g_app.ballVelocityY = verticalPositive
+                ? static_cast<float>(verticalMagnitude)
+                : -static_cast<float>(verticalMagnitude);
+        }
+        updateBallObject(g_app.ballX, g_app.ballY,
+                         g_app.ballVelocityX, g_app.ballVelocityY,
+                         g_app.ballCollisionArmed, false);
         if (g_app.matchPhase != MatchPhase::playing) {
             invalidate();
             return;
         }
-    } else if (g_app.ballX < 0.0f) {
-        g_app.ballX = 0.0f;
-        g_app.ballVelocityX = -g_app.ballVelocityX;
-        g_app.ballCollisionArmed = {true, true};
-        playEffect(g_app.ballHitSound, 0.75f);
-        damagePlayer(0, g_app.ballDamage);
-        if (g_app.matchPhase != MatchPhase::playing) {
-            invalidate();
-            return;
-        }
-    }
-
-    // The top and bottom tests at 0x004132CC/0x00413347 use the full 0..432
-    // playfield and re-arm both paddle collision gates.
-    if (g_app.ballY < 0.0f ||
-        g_app.ballY + ballHeight > static_cast<float>(kPlayfieldHeight)) {
-        g_app.ballY = std::clamp(g_app.ballY, 0.0f,
-                                 static_cast<float>(kPlayfieldHeight - ballHeight));
-        g_app.ballVelocityY = -g_app.ballVelocityY;
-        g_app.ballCollisionArmed = {true, true};
-        playEffect(g_app.ballBounceSound, 0.65f);
-    }
-
-    const float leftEdge = g_app.player1X + kFighterCollisionWidth;
-    const float rightEdge = g_app.player2X;
-    const bool touchesPlayer1 = g_app.ballX < leftEdge &&
-        g_app.ballX + ballWidth >= g_app.player1X &&
-        g_app.ballY + ballHeight >= g_app.player1Y &&
-        g_app.ballY < g_app.player1Y + kFighterCollisionHeight;
-    if (touchesPlayer1 && g_app.ballCollisionArmed[0]) {
-        g_app.ballCollisionArmed[0] = false;
-        g_app.ballCollisionArmed[1] = true;
-        playEffect(g_app.ballHitSound, 0.75f);
-
-        const float base = static_cast<float>(g_app.ballBaseSpeed);
-        if (g_app.ballVelocityX < 0.0f) {
-            if (g_app.player1Y + 20.0f > g_app.ballY + ballHeight) {
-                g_app.ballVelocityX = base - 1.0f;
-                g_app.ballVelocityY = -(base + 1.0f);
-            } else if (g_app.player1Y + kFighterCollisionHeight - 20.0f <
-                       g_app.ballY) {
-                g_app.ballVelocityX = base - 1.0f;
-                g_app.ballVelocityY = base + 1.0f;
-            } else {
-                g_app.ballVelocityX = base;
-                g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? base : -base;
-            }
-        } else {
-            g_app.ballVelocityX = base + 1.0f;
-            const float reduced = base - 1.0f;
-            g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? -reduced : reduced;
-        }
-    }
-
-    const bool touchesPlayer2 = g_app.ballX + ballWidth > rightEdge &&
-        g_app.ballX <= g_app.player2X + kFighterCollisionWidth &&
-        g_app.ballY + ballHeight >= g_app.player2Y &&
-        g_app.ballY < g_app.player2Y + kFighterCollisionHeight;
-    if (touchesPlayer2 && g_app.ballCollisionArmed[1]) {
-        g_app.ballCollisionArmed[1] = false;
-        g_app.ballCollisionArmed[0] = true;
-        playEffect(g_app.ballHitSound, 0.75f);
-
-        const float base = static_cast<float>(g_app.ballBaseSpeed);
-        if (g_app.ballVelocityX > 0.0f) {
-            if (g_app.player2Y + 20.0f > g_app.ballY + ballHeight) {
-                g_app.ballVelocityX = -(base - 1.0f);
-                g_app.ballVelocityY = -(base + 1.0f);
-            } else if (g_app.player2Y + kFighterCollisionHeight - 20.0f <
-                       g_app.ballY) {
-                g_app.ballVelocityX = -(base - 1.0f);
-                g_app.ballVelocityY = base + 1.0f;
-            } else {
-                g_app.ballVelocityX = -base;
-                g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? base : -base;
-            }
-        } else {
-            g_app.ballVelocityX = -(base + 1.0f);
-            const float reduced = base - 1.0f;
-            g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? -reduced : reduced;
+        if (g_app.secondaryBallActive) {
+            updateBallObject(g_app.secondaryBallX, g_app.secondaryBallY,
+                             g_app.secondaryBallVelocityX,
+                             g_app.secondaryBallVelocityY,
+                             g_app.secondaryBallCollisionArmed,
+                             g_app.currentKode == VersusKode::decoyBall);
         }
     }
     invalidate();
@@ -2205,6 +2437,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                         g_app.selectedCharacters[1] %= available;
                         invalidate();
                     } else if (g_app.playerCount == 2) {
+                        g_app.kodeDigits = {};
                         g_app.screen = Screen::versusKode;
                         invalidate();
                     } else {
@@ -2509,7 +2742,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
         }
     }
     g_app.portraits[16] = loadOriginalBitmap(instance, 2007, 2000);
-    g_app.ballSprite = loadOriginalSprite(instance, 2004, 500);
+    for (int index = 0; index < static_cast<int>(g_app.ballSprites.size()); ++index) {
+        g_app.ballSprites[static_cast<std::size_t>(index)] =
+            loadOriginalSprite(instance, 2004, 500 + index);
+    }
     g_app.roundWinMarker = loadOriginalSprite(instance, 2004, 128);
     g_app.healthFrame = loadOriginalSprite(instance, 2004, 400);
     g_app.turboFrame = loadOriginalSprite(instance, 2004, 401);

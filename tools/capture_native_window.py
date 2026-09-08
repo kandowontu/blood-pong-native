@@ -42,8 +42,13 @@ def main() -> None:
     parser.add_argument("output", type=Path)
     parser.add_argument(
         "--screen",
-        choices=("title", "credits", "select", "ladder", "kode", "unlock", "fight", "match", "projectile", "cheat", "configuration"),
+        choices=("title", "credits", "select", "ladder", "kode", "unlock", "fight", "match", "kode-match", "projectile", "cheat", "configuration"),
         default="credits",
+    )
+    parser.add_argument(
+        "--versus-kode",
+        default="202202",
+        help="six digits to enter when --screen kode-match is selected",
     )
     args = parser.parse_args()
 
@@ -75,6 +80,17 @@ def main() -> None:
     elif args.screen == "configuration":
         for _ in range(2):
             user32.SendMessageW(window, 0x0100, 0x28, 0)
+        user32.SendMessageW(window, 0x0100, 0x0D, 0)
+    elif args.screen == "kode-match":
+        if len(args.versus_kode) != 6 or not args.versus_kode.isdigit():
+            process.terminate()
+            raise SystemExit("--versus-kode must contain exactly six digits")
+        user32.SendMessageW(window, 0x0100, 0x28, 0)  # TWO PLAYER
+        user32.SendMessageW(window, 0x0100, 0x0D, 0)
+        user32.SendMessageW(window, 0x0100, 0x0D, 0)  # confirm P1
+        user32.SendMessageW(window, 0x0100, 0x0D, 0)  # confirm P2
+        for digit in args.versus_kode:
+            user32.SendMessageW(window, 0x0100, ord(digit), 0)
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
     elif args.screen in ("select", "ladder", "fight", "match", "projectile", "cheat"):
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
@@ -117,7 +133,7 @@ def main() -> None:
             user32.keybd_event(0x11, 0, 2, 0)
     if args.screen == "fight":
         time.sleep(3.2)
-    elif args.screen == "match":
+    elif args.screen in ("match", "kode-match"):
         time.sleep(6.2)
     else:
         time.sleep(0.28 if args.screen == "projectile" else 0.12)

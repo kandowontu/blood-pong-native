@@ -38,9 +38,11 @@ backbuffer with a single final window copy, eliminating the live black clear
 that caused flicker. Default ball play now uses the recovered 16x16 center,
 five-pixel velocity, 544x432 bounds, 30-point wall damage, collision gates, and
 original return-angle branches without invented serve resets or contact damage.
-The gameplay/class-method audit is still being used to replace the remaining
-versus-kode, second-ball, and specialized secondary status-effect behavior
-before a preservation release is declared 1:1 complete.
+All 29 versus messages and their recovered gameplay modifiers are active,
+including the normal secondary ball and wall-only decoy. The gameplay/class-
+method audit is still being used to replace the remaining specialized temporary
+ball/status-effect behavior before a preservation release is declared 1:1
+complete.
 
 ## Reproducible Windows build
 

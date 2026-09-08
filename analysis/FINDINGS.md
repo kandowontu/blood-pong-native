@@ -53,7 +53,9 @@ the eight non-sprite icon/version/dialog records are rejected.
 - `0x00401094` owns the six-slot versus-kode UI.
 - `0x00401458` combines the six digits as a decimal integer and stores it at
   `0x0043670C`.
-- `0x00413EAC` dispatches the 30 known versus effects/messages.
+- `0x00413EAC` dispatches 29 versus effects/messages. `VERSUS_KODES.md`
+  records every decimal value, displayed string, and recovered effect site;
+  the separate `111-999` Ultimate Kombat Kode path makes 30 recognized paths.
 - `555-555` maps to `RANDOM PADDLES`; it is not the all-content unlock.
 - `111-999` has a separate transition path at `0x0040147A`.
 - Match setup checks additional codes including `414-141`, `124-124`, and
@@ -62,7 +64,14 @@ the eight non-sprite icon/version/dialog records are rejected.
 Static cross-reference auditing confirms that no versus-kode branch writes the
 full-version byte. The native shortcut therefore activates the reconstructed
 equivalent of the full-version flag directly while on the kode screen; it does
-not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
+not spoof `555-555` or mislabel a versus modifier as the unlock sequence. It
+also fills the visible slots with the exact `111-999` value before activation.
+
+The native two-player match now applies every recovered dispatcher effect:
+ball sprite/speed/damage/visibility, secondary and decoy balls, crazy velocity,
+projectile damage/disable, run disable, hidden HUD, reversed movement, random
+or invisible paddles, and all health handicaps. The `555-555` full-version gate
+is retained.
 
 ## Character animation and projectile banks
 
