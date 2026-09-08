@@ -51,8 +51,15 @@ struct SpriteAsset {
 };
 
 struct SoundAsset {
-    std::vector<std::uint8_t> wave;
-    explicit operator bool() const { return !wave.empty(); }
+    std::vector<std::uint8_t> samples;
+    std::uint32_t sampleRate{};
+    explicit operator bool() const { return sampleRate != 0 && !samples.empty(); }
+};
+
+struct AudioVoice {
+    const SoundAsset* sound{};
+    double position{};
+    float gain{1.0f};
 };
 
 struct Projectile {
@@ -134,6 +141,31 @@ struct App {
     SpriteAsset fatalitySprite{};
     SoundAsset titleMusic{};
     SoundAsset matchMusic{};
+    std::array<SoundAsset, 16> fighterVoices{};
+    SoundAsset menuMoveSound{};
+    SoundAsset menuSelectSound{};
+    SoundAsset roundSound{};
+    std::array<SoundAsset, 3> roundNumberSounds{};
+    SoundAsset fightSound{};
+    SoundAsset finishHimSound{};
+    SoundAsset finishHerSound{};
+    SoundAsset fatalitySound{};
+    SoundAsset projectileAlternateSound{};
+    SoundAsset projectileSecondarySound{};
+    SoundAsset ballBounceSound{};
+    SoundAsset ballHitSound{};
+    std::array<SoundAsset, 25> projectileSounds{};
+    HWAVEOUT audioDevice{};
+    static constexpr std::size_t kAudioBufferCount = 4;
+    static constexpr std::size_t kAudioBufferSamples = 512;
+    static constexpr std::uint32_t kAudioOutputRate = 22050;
+    std::array<std::array<std::int16_t, kAudioBufferSamples>, kAudioBufferCount>
+        audioBuffers{};
+    std::array<WAVEHDR, kAudioBufferCount> audioHeaders{};
+    std::array<AudioVoice, 8> audioVoices{};
+    const SoundAsset* currentMusic{};
+    double musicPosition{};
+    bool audioShuttingDown{};
     std::array<std::uint32_t, 256> palette{};
     Screen screen{Screen::title};
     Screen screenBelowCheats{Screen::match};
@@ -201,6 +233,19 @@ constexpr std::array<std::string_view, 16> kCharacterNames{
 constexpr std::array<int, 16> kCharacterResourceTypes{
     2017, 2006, 2005, 2014, 2016, 2010, 2011, 2015,
     2018, 2000, 2012, 2002, 2013, 2008, 2020, 2009};
+
+// The original loader at 0x0040AA64 binds these VOC resources to the same
+// sixteen-entry fighter constructor order used by character selection.
+constexpr std::array<int, 16> kFighterVoiceIds{
+    2000, 2004, 2001, 2005, 2002, 2007, 2003, 2006,
+    2010, 2014, 2011, 2015, 2012, 2017, 2013, 2016};
+
+// Start cues used by the projectile dispatcher at 0x0041ACB5. Type four's
+// mode-11 branch substitutes resource 3028 for the ordinary 3008 cue.
+constexpr std::array<int, 25> kProjectileSoundIds{
+    0, 3000, 3003, 3005, 3008, 3007, 3010, 3010, 3012, 3032,
+    3013, 2050, 3014, 3019, 3020, 3013, 3012, 3021, 3031, 3030,
+    3029, 3023, 3025, 3025, 3020};
 
 // The original finish-prompt initializer at 0x004143D9 selects FINISH HER for
 // fighter numbers 3, 10, and 16, and FINISH HIM for every other fighter.
@@ -302,17 +347,6 @@ ResourceView loadOriginalResource(HINSTANCE instance, int type, int id) {
             static_cast<std::size_t>(SizeofResource(instance, resource))};
 }
 
-void appendU16(std::vector<std::uint8_t>& output, std::uint16_t value) {
-    output.push_back(static_cast<std::uint8_t>(value));
-    output.push_back(static_cast<std::uint8_t>(value >> 8));
-}
-
-void appendU32(std::vector<std::uint8_t>& output, std::uint32_t value) {
-    for (int shift = 0; shift < 32; shift += 8) {
-        output.push_back(static_cast<std::uint8_t>(value >> shift));
-    }
-}
-
 SoundAsset loadOriginalVoc(HINSTANCE instance, int id) {
     SoundAsset sound;
     const ResourceView resource = loadOriginalResource(instance, 2001, id);
@@ -351,35 +385,137 @@ SoundAsset loadOriginalVoc(HINSTANCE instance, int id) {
     }
     if (!sampleRate || pcm.empty()) return sound;
 
-    sound.wave.reserve(44 + pcm.size());
-    sound.wave.insert(sound.wave.end(), {'R', 'I', 'F', 'F'});
-    appendU32(sound.wave, static_cast<std::uint32_t>(36 + pcm.size()));
-    sound.wave.insert(sound.wave.end(), {'W', 'A', 'V', 'E', 'f', 'm', 't', ' '});
-    appendU32(sound.wave, 16);
-    appendU16(sound.wave, WAVE_FORMAT_PCM);
-    appendU16(sound.wave, 1);
-    appendU32(sound.wave, sampleRate);
-    appendU32(sound.wave, sampleRate);
-    appendU16(sound.wave, 1);
-    appendU16(sound.wave, 8);
-    sound.wave.insert(sound.wave.end(), {'d', 'a', 't', 'a'});
-    appendU32(sound.wave, static_cast<std::uint32_t>(pcm.size()));
-    sound.wave.insert(sound.wave.end(), pcm.begin(), pcm.end());
+    sound.samples = std::move(pcm);
+    sound.sampleRate = sampleRate;
     return sound;
 }
 
-void playMusic(const SoundAsset& sound) {
-    if (!g_app.soundEnabled || !sound) {
-        PlaySoundW(nullptr, nullptr, 0);
-        return;
+bool sampleSound(const SoundAsset& sound, double& position, bool loop, int& sample) {
+    if (!sound) return false;
+    if (position >= static_cast<double>(sound.samples.size())) {
+        if (!loop) return false;
+        position = std::fmod(position, static_cast<double>(sound.samples.size()));
     }
-    PlaySoundA(reinterpret_cast<LPCSTR>(sound.wave.data()), nullptr,
-               SND_ASYNC | SND_MEMORY | SND_LOOP | SND_NODEFAULT);
+    const auto index = std::min(static_cast<std::size_t>(position), sound.samples.size() - 1);
+    sample = (static_cast<int>(sound.samples[index]) - 128) << 8;
+    position += static_cast<double>(sound.sampleRate) / App::kAudioOutputRate;
+    return true;
+}
+
+void fillAudioBuffer(std::size_t bufferIndex) {
+    auto& buffer = g_app.audioBuffers[bufferIndex];
+    for (auto& output : buffer) {
+        int mixed = 0;
+        if (g_app.soundEnabled && g_app.currentMusic) {
+            int sample{};
+            if (sampleSound(*g_app.currentMusic, g_app.musicPosition, true, sample)) {
+                mixed += sample * 5 / 10;
+            }
+        }
+        if (g_app.soundEnabled) {
+            for (auto& voice : g_app.audioVoices) {
+                if (!voice.sound) continue;
+                int sample{};
+                if (!sampleSound(*voice.sound, voice.position, false, sample)) {
+                    voice = {};
+                    continue;
+                }
+                mixed += static_cast<int>(sample * voice.gain);
+            }
+        }
+        output = static_cast<std::int16_t>(std::clamp(mixed, -32768, 32767));
+    }
+}
+
+bool initializeAudio() {
+    WAVEFORMATEX format{};
+    format.wFormatTag = WAVE_FORMAT_PCM;
+    format.nChannels = 1;
+    format.nSamplesPerSec = App::kAudioOutputRate;
+    format.wBitsPerSample = 16;
+    format.nBlockAlign = format.nChannels * format.wBitsPerSample / 8;
+    format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
+    if (waveOutOpen(&g_app.audioDevice, WAVE_MAPPER, &format,
+                    reinterpret_cast<DWORD_PTR>(g_app.window), 0, CALLBACK_WINDOW) !=
+        MMSYSERR_NOERROR) {
+        g_app.audioDevice = nullptr;
+        return false;
+    }
+    for (std::size_t index = 0; index < App::kAudioBufferCount; ++index) {
+        auto& header = g_app.audioHeaders[index];
+        header.lpData = reinterpret_cast<LPSTR>(g_app.audioBuffers[index].data());
+        header.dwBufferLength = static_cast<DWORD>(g_app.audioBuffers[index].size() *
+                                                   sizeof(std::int16_t));
+        header.dwUser = index;
+        fillAudioBuffer(index);
+        if (waveOutPrepareHeader(g_app.audioDevice, &header, sizeof(header)) !=
+                MMSYSERR_NOERROR ||
+            waveOutWrite(g_app.audioDevice, &header, sizeof(header)) != MMSYSERR_NOERROR) {
+            g_app.audioShuttingDown = true;
+            waveOutReset(g_app.audioDevice);
+            for (std::size_t prepared = 0; prepared <= index; ++prepared) {
+                if (g_app.audioHeaders[prepared].dwFlags & WHDR_PREPARED) {
+                    waveOutUnprepareHeader(g_app.audioDevice, &g_app.audioHeaders[prepared],
+                                           sizeof(WAVEHDR));
+                }
+            }
+            waveOutClose(g_app.audioDevice);
+            g_app.audioDevice = nullptr;
+            return false;
+        }
+    }
+    return true;
+}
+
+void refillAudioBuffer(WAVEHDR* completed) {
+    if (!g_app.audioDevice || g_app.audioShuttingDown || !completed) return;
+    const std::size_t index = static_cast<std::size_t>(completed->dwUser);
+    if (index >= App::kAudioBufferCount || completed != &g_app.audioHeaders[index]) return;
+    fillAudioBuffer(index);
+    waveOutWrite(g_app.audioDevice, completed, sizeof(*completed));
+}
+
+void stopAllEffects() {
+    for (auto& voice : g_app.audioVoices) voice = {};
+}
+
+void playEffect(const SoundAsset& sound, float gain = 0.85f) {
+    if (!g_app.soundEnabled || !sound) return;
+    AudioVoice* destination = nullptr;
+    for (auto& voice : g_app.audioVoices) {
+        if (!voice.sound) {
+            destination = &voice;
+            break;
+        }
+    }
+    if (!destination) destination = &g_app.audioVoices.front();
+    *destination = {&sound, 0.0, gain};
+}
+
+void playMusic(const SoundAsset& sound) {
+    g_app.currentMusic = g_app.soundEnabled && sound ? &sound : nullptr;
+    g_app.musicPosition = 0.0;
+    if (!g_app.soundEnabled) stopAllEffects();
 }
 
 void playTitleMusic() { playMusic(g_app.titleMusic); }
 
 void playMatchMusic() { playMusic(g_app.matchMusic); }
+
+void shutdownAudio() {
+    if (!g_app.audioDevice) return;
+    g_app.audioShuttingDown = true;
+    g_app.currentMusic = nullptr;
+    stopAllEffects();
+    waveOutReset(g_app.audioDevice);
+    for (auto& header : g_app.audioHeaders) {
+        if (header.dwFlags & WHDR_PREPARED) {
+            waveOutUnprepareHeader(g_app.audioDevice, &header, sizeof(header));
+        }
+    }
+    waveOutClose(g_app.audioDevice);
+    g_app.audioDevice = nullptr;
+}
 
 BitmapAsset loadOriginalBitmap(HINSTANCE instance, int type, int id, bool capturePalette = false) {
     BitmapAsset result;
@@ -925,6 +1061,7 @@ void toggleFullscreen() {
 }
 
 void activateTitleSelection() {
+    playEffect(g_app.menuSelectSound);
     switch (g_app.titleSelection) {
         case 0:
             g_app.playerCount = 1;
@@ -1105,6 +1242,12 @@ void damagePlayer(int player, int amount) {
         g_app.matchPhaseTicks = 0;
         g_app.matchPhase = g_app.score[static_cast<std::size_t>(g_app.roundWinner)] >= 2
             ? MatchPhase::finishPrompt : MatchPhase::betweenRounds;
+        if (g_app.matchPhase == MatchPhase::finishPrompt) {
+            const int defeatedCharacter = g_app.selectedCharacters[static_cast<std::size_t>(player)];
+            playEffect(kUsesFinishHer[static_cast<std::size_t>(defeatedCharacter)]
+                           ? g_app.finishHerSound : g_app.finishHimSound,
+                       1.0f);
+        }
     }
 }
 
@@ -1221,6 +1364,13 @@ void launchComponent(int player, int componentIndex) {
         g_app.attackCooldown[player] = 28;
         g_app.animationTicks[player] = 48;
         g_app.animationFrame[player] = 12;
+        if (component.originalType == 4 && component.delay == 11) {
+            playEffect(g_app.projectileAlternateSound);
+        } else if (component.originalType > 0 && component.originalType <
+                   static_cast<int>(g_app.projectileSounds.size())) {
+            playEffect(g_app.projectileSounds[static_cast<std::size_t>(
+                component.originalType)]);
+        }
         return;
     }
 }
@@ -1256,6 +1406,7 @@ void processCombatButton(int player, CombatButton button) {
                 g_app.fatalityPerformed = true;
                 g_app.matchPhase = MatchPhase::matchResult;
                 g_app.matchPhaseTicks = 0;
+                playEffect(g_app.fatalitySound, 1.0f);
             }
         } else if (g_app.matchPhase == MatchPhase::playing && !g_app.roundIntroActive) {
             launchComponent(player, recipe.component);
@@ -1328,6 +1479,7 @@ void triggerPaddleAttack(int player, int attack) {
     if (attack == 0) g_app.ballVelocityY = -std::max(2.4f, std::abs(g_app.ballVelocityY));
     if (attack == 1) g_app.ballVelocityY *= 0.55f;
     if (attack == 2) g_app.ballVelocityY = std::max(2.4f, std::abs(g_app.ballVelocityY));
+    playEffect(g_app.ballHitSound, 0.8f);
 }
 
 void updateProjectiles() {
@@ -1348,6 +1500,7 @@ void updateProjectiles() {
             projectile.x = projectile.owner == 0
                 ? leftDropX[static_cast<std::size_t>(variant)]
                 : rightDropX[static_cast<std::size_t>(variant)];
+            playEffect(g_app.projectileSecondarySound);
         }
         if (projectile.originalType == 17 && (projectile.age % 4) == 0) {
             // 0x0041D27C decreases vertical velocity for the first four
@@ -1382,6 +1535,7 @@ void updateProjectiles() {
             projectile.y = std::clamp(projectile.y, 0.0f,
                                       std::max(0.0f, 432.0f - height));
             projectile.velocityY = -projectile.velocityY;
+            playEffect(g_app.ballBounceSound, 0.7f);
         }
         if (projectile.originalType == 24) {
             const float minimumX = projectile.owner == 0 ? 10.0f : 282.0f;
@@ -1403,6 +1557,7 @@ void updateProjectiles() {
                               projectile.y <= targetY + targetSprite.height;
         if (collides && !projectile.hasHit) {
             projectile.hasHit = true;
+            playEffect(g_app.ballHitSound, 0.8f);
             if (projectile.originalType == 6 || projectile.originalType == 7 ||
                 projectile.originalType == 8) {
                 // So Frio's zero-damage effects replace the target's behavior
@@ -1498,6 +1653,14 @@ void updateMatch() {
         } else {
             g_app.roundIntroDelay = 4;
             ++g_app.roundIntroStage;
+            if (g_app.roundIntroStage == 1) {
+                playEffect(g_app.roundSound, 1.0f);
+            } else if (g_app.roundIntroStage == 19) {
+                const int round = std::clamp(g_app.roundNumber, 1, 3) - 1;
+                playEffect(g_app.roundNumberSounds[static_cast<std::size_t>(round)], 1.0f);
+            } else if (g_app.roundIntroStage == 37) {
+                playEffect(g_app.fightSound, 1.0f);
+            }
             if (g_app.roundIntroStage >= 59) g_app.roundIntroActive = false;
         }
         invalidate();
@@ -1599,6 +1762,7 @@ void updateMatch() {
     if (g_app.ballY <= 55.0f || g_app.ballY + ballHeight >= 428.0f) {
         g_app.ballY = std::clamp(g_app.ballY, 55.0f, 428.0f - ballHeight);
         g_app.ballVelocityY = -g_app.ballVelocityY;
+        playEffect(g_app.ballBounceSound, 0.65f);
     }
     const auto& left = g_app.standingPaddles[g_app.selectedCharacters[0]];
     const auto& right = g_app.standingPaddles[g_app.selectedCharacters[1]];
@@ -1610,6 +1774,7 @@ void updateMatch() {
         g_app.ballX = leftEdge;
         g_app.ballVelocityX = std::min(6.4f, -g_app.ballVelocityX * 1.035f);
         g_app.ballVelocityY += (g_app.ballY - g_app.player1Y - 22.0f) * 0.025f;
+        playEffect(g_app.ballHitSound, 0.75f);
         damagePlayer(0, 3);
         g_app.super[0] = std::min(kMaximumSuper, g_app.super[0] + 7);
     }
@@ -1619,6 +1784,7 @@ void updateMatch() {
         g_app.ballX = rightEdge - ballWidth;
         g_app.ballVelocityX = std::max(-6.4f, -g_app.ballVelocityX * 1.035f);
         g_app.ballVelocityY += (g_app.ballY - g_app.player2Y - 22.0f) * 0.025f;
+        playEffect(g_app.ballHitSound, 0.75f);
         damagePlayer(1, 3);
         g_app.super[1] = std::min(kMaximumSuper, g_app.super[1] + 7);
     }
@@ -1684,11 +1850,13 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             if (g_app.screen == Screen::title) {
                 if (wParam == VK_UP) {
                     g_app.titleSelection = (g_app.titleSelection + 4) % 5;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_DOWN) {
                     g_app.titleSelection = (g_app.titleSelection + 1) % 5;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
@@ -1701,15 +1869,18 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 int& character = g_app.selectedCharacters[g_app.selectingPlayer];
                 if (wParam == VK_LEFT) {
                     character = (character + available - 1) % available;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_RIGHT) {
                     character = (character + 1) % available;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_RETURN || wParam == VK_SPACE) {
+                    playEffect(g_app.fighterVoices[static_cast<std::size_t>(character)], 1.0f);
                     if (g_app.playerCount == 2 && g_app.selectingPlayer == 0) {
                         g_app.selectingPlayer = 1;
                         g_app.selectedCharacters[1] %= available;
@@ -1731,10 +1902,12 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 if (wParam >= '0' && wParam <= '9') {
                     for (int index = 0; index < 5; ++index) g_app.kodeDigits[index] = g_app.kodeDigits[index + 1];
                     g_app.kodeDigits[5] = static_cast<int>(wParam - '0');
+                    playEffect(g_app.menuMoveSound, 0.65f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_RETURN || wParam == VK_SPACE) {
+                    playEffect(g_app.menuSelectSound);
                     beginMatch();
                     return 0;
                 }
@@ -1762,17 +1935,20 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             } else if (g_app.screen == Screen::cheatMenu) {
                 if (wParam == VK_UP) {
                     g_app.cheatSelection = (g_app.cheatSelection + 5) % 6;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_DOWN) {
                     g_app.cheatSelection = (g_app.cheatSelection + 1) % 6;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_RETURN || wParam == VK_SPACE) {
                     g_app.cheats[g_app.cheatSelection] = !g_app.cheats[g_app.cheatSelection];
                     if (g_app.cheatSelection == 5 && g_app.cheats[5]) g_app.allContentUnlocked = true;
+                    playEffect(g_app.menuSelectSound);
                     invalidate();
                     return 0;
                 }
@@ -1784,23 +1960,28 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             } else if (g_app.screen == Screen::configuration) {
                 if (wParam == VK_UP) {
                     g_app.configSelection = (g_app.configSelection + 5) % 6;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_DOWN) {
                     g_app.configSelection = (g_app.configSelection + 1) % 6;
+                    playEffect(g_app.menuMoveSound, 0.7f);
                     invalidate();
                     return 0;
                 }
                 if (wParam == VK_LEFT) {
+                    playEffect(g_app.menuSelectSound, 0.7f);
                     adjustConfiguration(-1);
                     return 0;
                 }
                 if (wParam == VK_RIGHT) {
+                    playEffect(g_app.menuSelectSound, 0.7f);
                     adjustConfiguration(1);
                     return 0;
                 }
                 if (wParam == VK_RETURN || wParam == VK_SPACE) {
+                    playEffect(g_app.menuSelectSound);
                     if (g_app.configSelection == 5) {
                         g_app.screen = Screen::title;
                         invalidate();
@@ -1829,6 +2010,9 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             pollGamepads();
             postGamepadMenuInput();
             updateMatch();
+            return 0;
+        case MM_WOM_DONE:
+            refillAudioBuffer(reinterpret_cast<WAVEHDR*>(lParam));
             return 0;
         case WM_PAINT: {
             PAINTSTRUCT paint{};
@@ -1890,7 +2074,7 @@ bool initializeBackbuffer(HWND window) {
 }
 
 void destroyResources() {
-    PlaySoundW(nullptr, nullptr, 0);
+    shutdownAudio();
     if (g_app.xinputSetState) {
         XINPUT_VIBRATION vibration{};
         for (DWORD pad = 0; pad < XUSER_MAX_COUNT; ++pad) {
@@ -2001,6 +2185,26 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
     g_app.fatalitySprite = loadOriginalSprite(instance, 2023, 250);
     g_app.titleMusic = loadOriginalVoc(instance, 8000);
     g_app.matchMusic = loadOriginalVoc(instance, 8005);
+    for (std::size_t index = 0; index < g_app.fighterVoices.size(); ++index) {
+        g_app.fighterVoices[index] = loadOriginalVoc(instance, kFighterVoiceIds[index]);
+    }
+    g_app.menuMoveSound = loadOriginalVoc(instance, 3001);
+    g_app.menuSelectSound = loadOriginalVoc(instance, 3002);
+    g_app.roundSound = loadOriginalVoc(instance, 1000);
+    for (std::size_t round = 0; round < g_app.roundNumberSounds.size(); ++round) {
+        g_app.roundNumberSounds[round] = loadOriginalVoc(instance, 1001 + static_cast<int>(round));
+    }
+    g_app.fightSound = loadOriginalVoc(instance, 1004);
+    g_app.finishHimSound = loadOriginalVoc(instance, 1005);
+    g_app.finishHerSound = loadOriginalVoc(instance, 1006);
+    g_app.fatalitySound = loadOriginalVoc(instance, 250);
+    g_app.projectileAlternateSound = loadOriginalVoc(instance, 3028);
+    g_app.projectileSecondarySound = loadOriginalVoc(instance, 3011);
+    g_app.ballBounceSound = loadOriginalVoc(instance, 500);
+    g_app.ballHitSound = loadOriginalVoc(instance, 501);
+    for (std::size_t type = 1; type < g_app.projectileSounds.size(); ++type) {
+        g_app.projectileSounds[type] = loadOriginalVoc(instance, kProjectileSoundIds[type]);
+    }
     constexpr std::array<const wchar_t*, 3> xinputLibraries{
         L"xinput1_4.dll", L"xinput1_3.dll", L"xinput9_1_0.dll"};
     for (const wchar_t* library : xinputLibraries) {
@@ -2016,6 +2220,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
         }
     }
     pollGamepads();
+    initializeAudio();
     render();
     ShowWindow(g_app.window, showCommand);
     UpdateWindow(g_app.window);

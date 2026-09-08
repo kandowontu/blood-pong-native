@@ -1,0 +1,1539 @@
+{
+  "format": "Creative Voice File, unsigned 8-bit PCM mono",
+  "resourceType": 2001,
+  "assetCount": 133,
+  "bindings": {
+    "announcer": {
+      "round": 1000,
+      "round1": 1001,
+      "round2": 1002,
+      "round3": 1003,
+      "fight": 1004,
+      "finishHim": 1005,
+      "finishHer": 1006,
+      "fatality": 250
+    },
+    "ui": {
+      "move": 3001,
+      "select": 3002
+    },
+    "physics": {
+      "paddleHit": 501,
+      "arenaBounce": 500
+    },
+    "projectileAlternate": {
+      "type4Mode11": 3028,
+      "type7SecondPhase": 3011
+    },
+    "fighterVoices": {
+      "Fung Shwei": 2000,
+      "Lo Than": 2004,
+      "Jewel": 2001,
+      "Raptor": 2005,
+      "So Frio": 2002,
+      "Nai Palm": 2007,
+      "One Eye": 2003,
+      "Raider": 2006,
+      "Show Lin": 2010,
+      "Dawg Cau": 2014,
+      "Omoh": 2011,
+      "Carmack": 2015,
+      "Pain": 2012,
+      "Lo Pan": 2017,
+      "Mai Lai": 2013,
+      "Baka": 2016
+    },
+    "projectileStartByType": {
+      "1": 3000,
+      "2": 3003,
+      "3": 3005,
+      "4": 3008,
+      "5": 3007,
+      "6": 3010,
+      "7": 3010,
+      "8": 3012,
+      "9": 3032,
+      "10": 3013,
+      "11": 2050,
+      "12": 3014,
+      "13": 3019,
+      "14": 3020,
+      "15": 3013,
+      "16": 3012,
+      "17": 3021,
+      "18": 3031,
+      "19": 3030,
+      "20": 3029,
+      "21": 3023,
+      "22": 3025,
+      "23": 3025,
+      "24": 3020
+    }
+  },
+  "missingReferencedResources": [],
+  "assets": [
+    {
+      "resourceId": 128,
+      "bytes": 2092,
+      "sampleRate": 11111,
+      "sampleCount": 2059,
+      "durationSeconds": 0.185312,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "2298C058595DF9320020259314DC47EE8B49F98D5C807BB5DB2C4D48A92D44C2"
+    },
+    {
+      "resourceId": 129,
+      "bytes": 1918,
+      "sampleRate": 11111,
+      "sampleCount": 1885,
+      "durationSeconds": 0.169652,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "E0E14AB48E3E699E1608745D3CC73073967DBCA8FDB81E0F0F0661AB88CA694B"
+    },
+    {
+      "resourceId": 201,
+      "bytes": 16861,
+      "sampleRate": 11111,
+      "sampleCount": 16828,
+      "durationSeconds": 1.514535,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "E50CF2078B0EFEA09F70F40B7DDBF8F2727D79B6912FF9E1D2BEA88F61E5BF8C"
+    },
+    {
+      "resourceId": 202,
+      "bytes": 15197,
+      "sampleRate": 11111,
+      "sampleCount": 15164,
+      "durationSeconds": 1.364774,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "D7D2D78DDEBE14BBEC7BA30FAD200AE9C155C4C23A210121F68867E682CEB2EB"
+    },
+    {
+      "resourceId": 203,
+      "bytes": 9821,
+      "sampleRate": 11111,
+      "sampleCount": 9788,
+      "durationSeconds": 0.880929,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "FAEACA66E0F4078C402CEE5FF58C52642E26A2B86EC0673AFDA904145220340E"
+    },
+    {
+      "resourceId": 204,
+      "bytes": 10672,
+      "sampleRate": 11111,
+      "sampleCount": 10639,
+      "durationSeconds": 0.95752,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "7BF82AB61C852A743BFB5D8A7E1D0C6FCBE42D3C550B0BAF5452079C17B6C2D4"
+    },
+    {
+      "resourceId": 205,
+      "bytes": 14662,
+      "sampleRate": 11111,
+      "sampleCount": 14629,
+      "durationSeconds": 1.316623,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "EC40C01DEDD4E0A81295871A250CB27B2CB20E6F349A2496D13443869B3F775E"
+    },
+    {
+      "resourceId": 206,
+      "bytes": 13238,
+      "sampleRate": 11111,
+      "sampleCount": 13205,
+      "durationSeconds": 1.188462,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "36D5A5433E47AA6AFC4522DA0018A14885042BF25EA9B7135E9D4AAF6CB8FE4E"
+    },
+    {
+      "resourceId": 207,
+      "bytes": 9373,
+      "sampleRate": 11111,
+      "sampleCount": 9340,
+      "durationSeconds": 0.840608,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "D7BB2FD3FCA542668E32FCFDDFECD7A34767F5648B2E5B0E49F14AB0331B0439"
+    },
+    {
+      "resourceId": 208,
+      "bytes": 8125,
+      "sampleRate": 11111,
+      "sampleCount": 8092,
+      "durationSeconds": 0.728287,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "0E6273C8B5A58A4A46EED8ECE93190EFD4F7E0F1FEE8CFEE0F470515FC589F60"
+    },
+    {
+      "resourceId": 209,
+      "bytes": 13281,
+      "sampleRate": 11111,
+      "sampleCount": 13248,
+      "durationSeconds": 1.192332,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "88BAD5D61B42BBD254AF579A75C99700211EA0D5B0B086B1981A5EAB2BAC517D"
+    },
+    {
+      "resourceId": 210,
+      "bytes": 7005,
+      "sampleRate": 11111,
+      "sampleCount": 6972,
+      "durationSeconds": 0.627486,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "ACE7478EB6696C2DDFC71C070838A91047E5B74E3F059009B410B29DA52FE339"
+    },
+    {
+      "resourceId": 211,
+      "bytes": 7039,
+      "sampleRate": 11111,
+      "sampleCount": 7006,
+      "durationSeconds": 0.630546,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "39525149B2C610565B7ACB20ED3E93947D47EA6A220434A1848809F435C35F6E"
+    },
+    {
+      "resourceId": 212,
+      "bytes": 9565,
+      "sampleRate": 11111,
+      "sampleCount": 9532,
+      "durationSeconds": 0.857889,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "92836AED8CAA9C7FC8137AD44713EBED8926AD8DC25D94AF6FB4B31D1FB60BF7"
+    },
+    {
+      "resourceId": 213,
+      "bytes": 8348,
+      "sampleRate": 11111,
+      "sampleCount": 8315,
+      "durationSeconds": 0.748357,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "CD2D86C59ABD3032935131D797A363087A7133EE860972AAA5F7C73A1D234A6F"
+    },
+    {
+      "resourceId": 214,
+      "bytes": 12036,
+      "sampleRate": 11111,
+      "sampleCount": 12003,
+      "durationSeconds": 1.080281,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "21F1D2453DA505FE6639E4CD5E31B159D11034E680D0E7AF247843C79C28ECC8"
+    },
+    {
+      "resourceId": 215,
+      "bytes": 10333,
+      "sampleRate": 11111,
+      "sampleCount": 10300,
+      "durationSeconds": 0.927009,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "AECBC6C6C3AFF1B941C2964C50FAD00B7045E547A1FE24FC2C31E8FF0F9DFA32"
+    },
+    {
+      "resourceId": 216,
+      "bytes": 11579,
+      "sampleRate": 11111,
+      "sampleCount": 11546,
+      "durationSeconds": 1.03915,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "19AA8C12E4C83819EBE01241046F8327195D29E69276A69A50BA1E97A7037FA2"
+    },
+    {
+      "resourceId": 250,
+      "bytes": 8363,
+      "sampleRate": 11111,
+      "sampleCount": 8330,
+      "durationSeconds": 0.749707,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "D610058BD1E4B0223DF5841A7A3EC50B6A6B18CFCD6D3DD493C7162945B90FAA"
+    },
+    {
+      "resourceId": 251,
+      "bytes": 11585,
+      "sampleRate": 11111,
+      "sampleCount": 11552,
+      "durationSeconds": 1.03969,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "24F1696548DE7D8C9881631500887124E6BCCC85CFA109F838D1B88F225E30C7"
+    },
+    {
+      "resourceId": 252,
+      "bytes": 18003,
+      "sampleRate": 11111,
+      "sampleCount": 17970,
+      "durationSeconds": 1.617316,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "287353F6D87AA1D6B5BB3FABA942B19C46270ABC6ED36AF23975BCA7C44E578D"
+    },
+    {
+      "resourceId": 300,
+      "bytes": 2408,
+      "sampleRate": 11111,
+      "sampleCount": 2375,
+      "durationSeconds": 0.213752,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "51DBA042EDE939D97C50B34055B24EBC310093C36B40AA57D320AD4F4EE800F7"
+    },
+    {
+      "resourceId": 301,
+      "bytes": 2227,
+      "sampleRate": 11111,
+      "sampleCount": 2194,
+      "durationSeconds": 0.197462,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "ED7EDE91B9F77917E8E75E185C90FA510CCF6C9AC291B32F96D2B81AFA849C84"
+    },
+    {
+      "resourceId": 302,
+      "bytes": 6044,
+      "sampleRate": 11111,
+      "sampleCount": 6011,
+      "durationSeconds": 0.540995,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "BDD67E56555EA7E9B417650261B50CD1B5B514F9AC79201424DC063FE45904D3"
+    },
+    {
+      "resourceId": 303,
+      "bytes": 6579,
+      "sampleRate": 11111,
+      "sampleCount": 6546,
+      "durationSeconds": 0.589146,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "AB4050F7C21EF265CB2D7E38AB658512E731F83432895B57DE8B47B3EC4C4FCA"
+    },
+    {
+      "resourceId": 304,
+      "bytes": 5533,
+      "sampleRate": 11111,
+      "sampleCount": 5500,
+      "durationSeconds": 0.495005,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "43F88FECA34BE86A1AD777737701A1ECACE3DCD5B3F96D3F6C4FB6848A2F3CBB"
+    },
+    {
+      "resourceId": 400,
+      "bytes": 26977,
+      "sampleRate": 11111,
+      "sampleCount": 26944,
+      "durationSeconds": 2.424984,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "91766AA4F25A4025F15705C0D3FB8AECB2636E1DB79CED2EA77C23154F5F56FF"
+    },
+    {
+      "resourceId": 401,
+      "bytes": 16009,
+      "sampleRate": 11111,
+      "sampleCount": 15976,
+      "durationSeconds": 1.437854,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "2510598ECE7F88CAA68DBB1A6E6612B259ED859D0B992F822B411150A0F35A12"
+    },
+    {
+      "resourceId": 500,
+      "bytes": 7381,
+      "sampleRate": 11111,
+      "sampleCount": 7348,
+      "durationSeconds": 0.661327,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "FA6D8B71B0E0C103A29ABD6888E15C5584A9C4360D866A2F3AF091B8C640791A"
+    },
+    {
+      "resourceId": 501,
+      "bytes": 1960,
+      "sampleRate": 11111,
+      "sampleCount": 1927,
+      "durationSeconds": 0.173432,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "2CE7A8F580221E6DF98E650D83816FFD45D69EB6CDCB0E4EBA0CF26C6A83D279"
+    },
+    {
+      "resourceId": 1000,
+      "bytes": 9629,
+      "sampleRate": 11111,
+      "sampleCount": 9596,
+      "durationSeconds": 0.863649,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "99F1B02C29CC1113D950A76B614B6C404EF576E5478D9F2F57654D45DB564791"
+    },
+    {
+      "resourceId": 1001,
+      "bytes": 6708,
+      "sampleRate": 11111,
+      "sampleCount": 6675,
+      "durationSeconds": 0.600756,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "ED11C73D13219B50D26D4C6F97CA31EF3B80CD22606E0F34BE69ADC6D85D95F7"
+    },
+    {
+      "resourceId": 1002,
+      "bytes": 6841,
+      "sampleRate": 11111,
+      "sampleCount": 6808,
+      "durationSeconds": 0.612726,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "46243D5CB4E4F334D1D88F3954C7EE54B1A3B14524AE5B08E4C30B9703B24D30"
+    },
+    {
+      "resourceId": 1003,
+      "bytes": 7650,
+      "sampleRate": 11111,
+      "sampleCount": 7617,
+      "durationSeconds": 0.685537,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "55B1A36E17F4F7D66222AE9EF28E77C4A7A166E4BEF40678EC9FD30AABB9425B"
+    },
+    {
+      "resourceId": 1004,
+      "bytes": 5884,
+      "sampleRate": 11111,
+      "sampleCount": 5851,
+      "durationSeconds": 0.526595,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "6D07E89BC1DD54D99BEF80884435BA244AC58FECC901AA4554C5D1BF5027E6DA"
+    },
+    {
+      "resourceId": 1005,
+      "bytes": 8643,
+      "sampleRate": 11111,
+      "sampleCount": 8610,
+      "durationSeconds": 0.774908,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "1BFE35F1776BAAB5D8FEC89F01A7B36C539E52881A335AF9CE4F5B769496B754"
+    },
+    {
+      "resourceId": 1006,
+      "bytes": 9649,
+      "sampleRate": 11111,
+      "sampleCount": 9616,
+      "durationSeconds": 0.865449,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "92DECB304CC1B4594239FDA78E7184C9789424A9A596A7106CAD6EDF072482AF"
+    },
+    {
+      "resourceId": 1007,
+      "bytes": 16144,
+      "sampleRate": 11111,
+      "sampleCount": 16111,
+      "durationSeconds": 1.450005,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "54223705403C80A550653734C2A37AA5AC6EE9D1F752E8A3B828484370993023"
+    },
+    {
+      "resourceId": 1008,
+      "bytes": 11485,
+      "sampleRate": 11111,
+      "sampleCount": 11452,
+      "durationSeconds": 1.03069,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "6E2080D23B27EF97A2B0F9D0F062C8604BBD6CC60DF0F61471C184875EBB5BF8"
+    },
+    {
+      "resourceId": 2000,
+      "bytes": 5955,
+      "sampleRate": 11111,
+      "sampleCount": 5922,
+      "durationSeconds": 0.532985,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "2D8FD54D284D9368F070EB97487C31A446B6C4CDAAF27756C2E9CF056C539896"
+    },
+    {
+      "resourceId": 2001,
+      "bytes": 5120,
+      "sampleRate": 11111,
+      "sampleCount": 5087,
+      "durationSeconds": 0.457835,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "729A161C0EFEC5B243B22DABB202E5B6B5C3D91545B7391B997C78B59BCAD538"
+    },
+    {
+      "resourceId": 2002,
+      "bytes": 9441,
+      "sampleRate": 11111,
+      "sampleCount": 9408,
+      "durationSeconds": 0.846728,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "771DAE392B248DD5B9BCCD5125E5A394A104380BC56B031468C79C3721457D1A"
+    },
+    {
+      "resourceId": 2003,
+      "bytes": 7320,
+      "sampleRate": 11111,
+      "sampleCount": 7287,
+      "durationSeconds": 0.655837,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "9FC237E1621F216800018E62439D26CA6F3F4AF75BC0F2CCD8445B75D36F16B0"
+    },
+    {
+      "resourceId": 2004,
+      "bytes": 10401,
+      "sampleRate": 11111,
+      "sampleCount": 10368,
+      "durationSeconds": 0.933129,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "D5E87C03741CD2DF7624D0ECB73C4F83E602642BB1F3E107CF325FA2EA372744"
+    },
+    {
+      "resourceId": 2005,
+      "bytes": 5742,
+      "sampleRate": 11111,
+      "sampleCount": 5709,
+      "durationSeconds": 0.513815,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "03FD704CBD1E70937896999751E123178CFE3CE360B1462E7AD3A83B699417F0"
+    },
+    {
+      "resourceId": 2006,
+      "bytes": 5753,
+      "sampleRate": 11111,
+      "sampleCount": 5720,
+      "durationSeconds": 0.514805,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "90E18C396B625141BFB31B1130FD5D9E748D66A980E1C2EDD86D4AF3CABF328B"
+    },
+    {
+      "resourceId": 2007,
+      "bytes": 10717,
+      "sampleRate": 11111,
+      "sampleCount": 10684,
+      "durationSeconds": 0.96157,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "B079366F33B18961818844D28278F124116E764752B5282B02146EE71CB1914F"
+    },
+    {
+      "resourceId": 2010,
+      "bytes": 4628,
+      "sampleRate": 11111,
+      "sampleCount": 4595,
+      "durationSeconds": 0.413554,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "151DF69398787DBFFB1D7CA776AB7357B7F32F82FB0B1263745FFA317AA1393C"
+    },
+    {
+      "resourceId": 2011,
+      "bytes": 2712,
+      "sampleRate": 11111,
+      "sampleCount": 2679,
+      "durationSeconds": 0.241112,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "72B33D1E1B598B47D8BA38BA2A4452567496AA9CB7F84C248E6EB366FAE3214B"
+    },
+    {
+      "resourceId": 2012,
+      "bytes": 2016,
+      "sampleRate": 11111,
+      "sampleCount": 1983,
+      "durationSeconds": 0.178472,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "545C081C741B9D398EED6825AA1F1DCF486FA1C78B4D2FA071CFD215FB12D580"
+    },
+    {
+      "resourceId": 2013,
+      "bytes": 2308,
+      "sampleRate": 11111,
+      "sampleCount": 2275,
+      "durationSeconds": 0.204752,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "78F684D8F32DA374F7A48D9B0C82A43A124C687478CB2721D939213A826B0C55"
+    },
+    {
+      "resourceId": 2014,
+      "bytes": 5124,
+      "sampleRate": 11111,
+      "sampleCount": 5091,
+      "durationSeconds": 0.458195,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "37822F253B5F828E072A50558C70E37BFBC19815FE5EC97D3457A7589E415B19"
+    },
+    {
+      "resourceId": 2015,
+      "bytes": 2542,
+      "sampleRate": 11111,
+      "sampleCount": 2509,
+      "durationSeconds": 0.225812,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "B2899BF9B66D3FA72BDA01FC760420DEA35DF34C2562C62603680BE3A70AE5A5"
+    },
+    {
+      "resourceId": 2016,
+      "bytes": 2264,
+      "sampleRate": 11111,
+      "sampleCount": 2231,
+      "durationSeconds": 0.200792,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "474B98715C9CC0D2C5745B0483320F6CFB4151DA10EFD3062C8B2E2F7B8CA02F"
+    },
+    {
+      "resourceId": 2017,
+      "bytes": 1858,
+      "sampleRate": 11111,
+      "sampleCount": 1825,
+      "durationSeconds": 0.164252,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "C9D179BDF4314D084E74C831AE2D35BB0D0F5CFE342940AD9FE4E527EB32402A"
+    },
+    {
+      "resourceId": 2020,
+      "bytes": 18793,
+      "sampleRate": 11111,
+      "sampleCount": 18760,
+      "durationSeconds": 1.688417,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "CDC89050F2C42EBA9CFF15EC456409F6174DA51073E018C90F6A16C9BB011839"
+    },
+    {
+      "resourceId": 2021,
+      "bytes": 21161,
+      "sampleRate": 11111,
+      "sampleCount": 21128,
+      "durationSeconds": 1.901539,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "5CD97CFF3309649ED061C61B79233A7D71DE838A0BA53010844DFD88F95EF353"
+    },
+    {
+      "resourceId": 2022,
+      "bytes": 24379,
+      "sampleRate": 11111,
+      "sampleCount": 24346,
+      "durationSeconds": 2.191162,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "A4647C608F8909FE651042D4B8D652682289E6D38679152F00A8ABB1A5ABC2CA"
+    },
+    {
+      "resourceId": 2023,
+      "bytes": 20975,
+      "sampleRate": 11111,
+      "sampleCount": 20942,
+      "durationSeconds": 1.884799,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "F5CAAE50D4850EC37B1907433C494F27732A1ED854A6DCCB966DE265144D9EB3"
+    },
+    {
+      "resourceId": 2050,
+      "bytes": 6577,
+      "sampleRate": 22222,
+      "sampleCount": 6544,
+      "durationSeconds": 0.294483,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "C7A94254E57E334236F0296DC0AC5AF6B61960CBBE6A1A22F0931E271111E3F9"
+    },
+    {
+      "resourceId": 2051,
+      "bytes": 9441,
+      "sampleRate": 11111,
+      "sampleCount": 9408,
+      "durationSeconds": 0.846728,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "8D8E7B6128BAF1EAB48082ECD76D877B726F52B2B6CCB478E91530215C1F366A"
+    },
+    {
+      "resourceId": 2052,
+      "bytes": 5229,
+      "sampleRate": 11111,
+      "sampleCount": 5196,
+      "durationSeconds": 0.467645,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "C74803367717A3C770079AD67F576D849D6A8423BECB9834B854DF9614A6221D"
+    },
+    {
+      "resourceId": 3000,
+      "bytes": 8586,
+      "sampleRate": 11111,
+      "sampleCount": 8553,
+      "durationSeconds": 0.769778,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "24EE37939EEC98904A0B55AE4062E5D3596C50AC164D844C058FCE49E1A877FC"
+    },
+    {
+      "resourceId": 3001,
+      "bytes": 13378,
+      "sampleRate": 11111,
+      "sampleCount": 13345,
+      "durationSeconds": 1.201062,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "B07C3D581BFF9F9AF0634A60D1C1F4FAAAB208857300639BBB1263A7B8DFEF0A"
+    },
+    {
+      "resourceId": 3002,
+      "bytes": 17346,
+      "sampleRate": 11111,
+      "sampleCount": 17313,
+      "durationSeconds": 1.558186,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "123DE6A93ADD76F6FA12DB48DA7CBC4B506B36BE668ADF82F6BB46BC1366DD4D"
+    },
+    {
+      "resourceId": 3003,
+      "bytes": 7499,
+      "sampleRate": 11111,
+      "sampleCount": 7466,
+      "durationSeconds": 0.671947,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "B212FDB1E24DC3DE39960754576098085D0FC71D790940DB9ADFE7C16586F8A3"
+    },
+    {
+      "resourceId": 3004,
+      "bytes": 18400,
+      "sampleRate": 11111,
+      "sampleCount": 18367,
+      "durationSeconds": 1.653047,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "1AD0E19DB60787E540370D48CCEC150963FF188A7A3BA69E44FEC2035C4EB447"
+    },
+    {
+      "resourceId": 3005,
+      "bytes": 13376,
+      "sampleRate": 11111,
+      "sampleCount": 13343,
+      "durationSeconds": 1.200882,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "1BBD0635CA338D54699DA2BD34FB065FA12C96CC26BAC33DE6B4312B9F4A0ABE"
+    },
+    {
+      "resourceId": 3006,
+      "bytes": 12849,
+      "sampleRate": 11111,
+      "sampleCount": 12816,
+      "durationSeconds": 1.153452,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "825A67208F3255EED64DE61BFB9651F2C288326E85678CC364BD0254A2867BB8"
+    },
+    {
+      "resourceId": 3007,
+      "bytes": 12440,
+      "sampleRate": 11111,
+      "sampleCount": 12407,
+      "durationSeconds": 1.116641,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "DD97ADE912B0D02A71A0B198AEC5072D5C30755DCC1559C12AA58EBBE64382FD"
+    },
+    {
+      "resourceId": 3008,
+      "bytes": 10670,
+      "sampleRate": 11235,
+      "sampleCount": 10637,
+      "durationSeconds": 0.946773,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "B8B545A7F46B1073AF9AF7C0A211329C1491A36EE957AAA4B480290D5FBF5AC1"
+    },
+    {
+      "resourceId": 3009,
+      "bytes": 7454,
+      "sampleRate": 11111,
+      "sampleCount": 7421,
+      "durationSeconds": 0.667897,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "A22B7105CCFAB6A653B020519C0CA85B674B6E493E3B9760D12D48AAB4FD77BC"
+    },
+    {
+      "resourceId": 3010,
+      "bytes": 12923,
+      "sampleRate": 11111,
+      "sampleCount": 12890,
+      "durationSeconds": 1.160112,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "100871F0A45DB2ED87988E11E0C4F8724B8F4198E9F8E225D202DC19604971FC"
+    },
+    {
+      "resourceId": 3011,
+      "bytes": 8723,
+      "sampleRate": 11111,
+      "sampleCount": 8690,
+      "durationSeconds": 0.782108,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "69F6BFD4F7B2445744538593F814796CEED20C4573211FBA68816273DD6399A4"
+    },
+    {
+      "resourceId": 3012,
+      "bytes": 5588,
+      "sampleRate": 11111,
+      "sampleCount": 5555,
+      "durationSeconds": 0.499955,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "ECCF23E6A5CC07068B5DFA8C576CD7A423BCD36BA8BE66B9E5F83C660632E369"
+    },
+    {
+      "resourceId": 3013,
+      "bytes": 7542,
+      "sampleRate": 11111,
+      "sampleCount": 7509,
+      "durationSeconds": 0.675817,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "5E1170F13DCA7D1A1A961AB179EB3C78CDFDFEEE9E1CC6F80DFCC9E769222E5D"
+    },
+    {
+      "resourceId": 3014,
+      "bytes": 12704,
+      "sampleRate": 11111,
+      "sampleCount": 12671,
+      "durationSeconds": 1.140401,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "F9DE2D17C3BB347F0FC11BCB8BA91FE83582009EE1DA0A44DB8667E568AFD3FB"
+    },
+    {
+      "resourceId": 3015,
+      "bytes": 6169,
+      "sampleRate": 11111,
+      "sampleCount": 6136,
+      "durationSeconds": 0.552246,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "941460F75DA40CC7ED9354E2EDD400E6A9842BBB1BC8A1CEFCED0DF396383AE7"
+    },
+    {
+      "resourceId": 3016,
+      "bytes": 6829,
+      "sampleRate": 11111,
+      "sampleCount": 6796,
+      "durationSeconds": 0.611646,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "10F7D2D66FC2E7AD5339717571AF21D8F2223D3869D07F57FAAD2A56B1CC19E4"
+    },
+    {
+      "resourceId": 3017,
+      "bytes": 8517,
+      "sampleRate": 11111,
+      "sampleCount": 8484,
+      "durationSeconds": 0.763568,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "681E7157A253BF4745B0016F8C50D6CB8D2E3D978F9EA2127C329F71386B1D0D"
+    },
+    {
+      "resourceId": 3018,
+      "bytes": 8290,
+      "sampleRate": 11111,
+      "sampleCount": 8257,
+      "durationSeconds": 0.743137,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "ED5FF73A04B0F1B4C38CDB46F90C6C8015729DDFACB343BBF0627FE604A1EBF5"
+    },
+    {
+      "resourceId": 3019,
+      "bytes": 12115,
+      "sampleRate": 11111,
+      "sampleCount": 12082,
+      "durationSeconds": 1.087391,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "A9FEA3B14B883C6DB05F0EF740F8263CC2500687BBEA04E89EB1370E4620E730"
+    },
+    {
+      "resourceId": 3020,
+      "bytes": 15855,
+      "sampleRate": 11111,
+      "sampleCount": 15822,
+      "durationSeconds": 1.423994,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "C5AA67D6251FCC5C8A94F094ACD5674A81CFE639CA94E339DF89BA37BBE02638"
+    },
+    {
+      "resourceId": 3021,
+      "bytes": 6451,
+      "sampleRate": 11111,
+      "sampleCount": 6418,
+      "durationSeconds": 0.577626,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "EC3C6DB2DBCC81BF354F9BFE267BD9CEC7BBDE191CE67C8487AC8215FD0BF19F"
+    },
+    {
+      "resourceId": 3022,
+      "bytes": 10025,
+      "sampleRate": 11111,
+      "sampleCount": 9992,
+      "durationSeconds": 0.899289,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "767FD1B1E8CBF68A2C11CBCF791772B06C3A55349396C21FC9F4C5D6D5349729"
+    },
+    {
+      "resourceId": 3023,
+      "bytes": 6445,
+      "sampleRate": 11111,
+      "sampleCount": 6412,
+      "durationSeconds": 0.577086,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "A2EA36BF665C36CA6A753F3797AB1643D60BE175452CC633A9FFD32F9FFCADD3"
+    },
+    {
+      "resourceId": 3024,
+      "bytes": 3012,
+      "sampleRate": 11111,
+      "sampleCount": 2979,
+      "durationSeconds": 0.268113,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "CB6B1D9C167ECFAC090129708D57660BC564EF643CA62EC0BB33660631EA3FDB"
+    },
+    {
+      "resourceId": 3025,
+      "bytes": 8220,
+      "sampleRate": 11111,
+      "sampleCount": 8187,
+      "durationSeconds": 0.736837,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "F1802D801C2BDDE408775BCBF48F01641F70144DE86C1F7578C07AA7A9C008C3"
+    },
+    {
+      "resourceId": 3026,
+      "bytes": 4704,
+      "sampleRate": 11111,
+      "sampleCount": 4671,
+      "durationSeconds": 0.420394,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "BEC5CC6A943F9A0C1357E34C41CF2EA2ADA9E54D9023A22F23E3D5A1E87B072F"
+    },
+    {
+      "resourceId": 3027,
+      "bytes": 8350,
+      "sampleRate": 11111,
+      "sampleCount": 8317,
+      "durationSeconds": 0.748537,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "69A03DA7648576AA849B9DCC536A3124E993698C2C711A6C9395E4A933A5A4E4"
+    },
+    {
+      "resourceId": 3028,
+      "bytes": 6399,
+      "sampleRate": 11111,
+      "sampleCount": 6366,
+      "durationSeconds": 0.572946,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "C4E03BCEC1A493E69FA2B2313569DE9933C0DA7AE5892A18FFDDD0E7D66EE63D"
+    },
+    {
+      "resourceId": 3029,
+      "bytes": 11673,
+      "sampleRate": 11111,
+      "sampleCount": 11640,
+      "durationSeconds": 1.04761,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "DB6CB7B55AE4715E35AF50A6B879F363D0B5D51EAA31E7080ADB02F2C89276A1"
+    },
+    {
+      "resourceId": 3030,
+      "bytes": 25491,
+      "sampleRate": 22222,
+      "sampleCount": 25458,
+      "durationSeconds": 1.145621,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "DDAE6211FFCCF69FA2490AD63F4B3757BD9231ACBE2E434532C513477AB62373"
+    },
+    {
+      "resourceId": 3031,
+      "bytes": 14420,
+      "sampleRate": 11111,
+      "sampleCount": 14387,
+      "durationSeconds": 1.294843,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "2BA80CCC01052C92F17A7EAD08CA6D6A1AA62F5146FB8E1AE22C30DB11020CFC"
+    },
+    {
+      "resourceId": 3032,
+      "bytes": 4901,
+      "sampleRate": 11111,
+      "sampleCount": 4868,
+      "durationSeconds": 0.438124,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "622D34AE9E1E8BBEE95E6BAE0583CF2F3BAB74D96785F584A128F309B90880AD"
+    },
+    {
+      "resourceId": 4000,
+      "bytes": 9052,
+      "sampleRate": 11111,
+      "sampleCount": 9019,
+      "durationSeconds": 0.811718,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "04EA668615F94282E0C04980EEF67D941EBDB4EE7AEB049C05F32A1EC5A3EFD8"
+    },
+    {
+      "resourceId": 4001,
+      "bytes": 8503,
+      "sampleRate": 11111,
+      "sampleCount": 8470,
+      "durationSeconds": 0.762308,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "2A8FB5B124B8E3EE91A40313E9024A2426DD3929CEC5D136935433F03DE9FAC8"
+    },
+    {
+      "resourceId": 4002,
+      "bytes": 7730,
+      "sampleRate": 11111,
+      "sampleCount": 7697,
+      "durationSeconds": 0.692737,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "C8CABAF21CAAAEDAF0657C50AC818C343E8546C1C0B46C8B500892DB19169E9D"
+    },
+    {
+      "resourceId": 4003,
+      "bytes": 4995,
+      "sampleRate": 11111,
+      "sampleCount": 4962,
+      "durationSeconds": 0.446584,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "4B210BD3AC75AFA6AA9029E8CBA04C700CB24923C419C0632E4D990EF1D3A5AD"
+    },
+    {
+      "resourceId": 4004,
+      "bytes": 16666,
+      "sampleRate": 11111,
+      "sampleCount": 16633,
+      "durationSeconds": 1.496985,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "F4FA05CA3AC913AE941E3FBF26F4AF4A096A869773569A4F1CC23B5D1BD6F1F1"
+    },
+    {
+      "resourceId": 4005,
+      "bytes": 7427,
+      "sampleRate": 11111,
+      "sampleCount": 7394,
+      "durationSeconds": 0.665467,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "6BF96073798DF2142694745F1575ECC947174E63B0DDC6298075E31D159F2748"
+    },
+    {
+      "resourceId": 4006,
+      "bytes": 5941,
+      "sampleRate": 11111,
+      "sampleCount": 5908,
+      "durationSeconds": 0.531725,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "EE07B824E26875C70A13142619AA6BB0831FFF624C25CB6541DEC9354B2BF464"
+    },
+    {
+      "resourceId": 4007,
+      "bytes": 2731,
+      "sampleRate": 11111,
+      "sampleCount": 2698,
+      "durationSeconds": 0.242822,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "DE8F918387360D2D810CF4AFB01229B0430CBE74372DF319D0C5A2CDE4B6AA0F"
+    },
+    {
+      "resourceId": 4008,
+      "bytes": 11603,
+      "sampleRate": 11111,
+      "sampleCount": 11570,
+      "durationSeconds": 1.04131,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "3EAEB119E9CFC5029C74756132DBDC5ACFD41C685329910420B8CDF4D078E979"
+    },
+    {
+      "resourceId": 4009,
+      "bytes": 31365,
+      "sampleRate": 11111,
+      "sampleCount": 31332,
+      "durationSeconds": 2.819908,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "6EF37B50EEDA860FE4C38C181027158EFA86A79A8A9D0EBB6DE0B7AFC89E3D44"
+    },
+    {
+      "resourceId": 4010,
+      "bytes": 25057,
+      "sampleRate": 11111,
+      "sampleCount": 25024,
+      "durationSeconds": 2.252183,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "F97E2DFC1AC554D7DDF20920E7312176ABEBBA63DBB219725487C50B36116305"
+    },
+    {
+      "resourceId": 4011,
+      "bytes": 22344,
+      "sampleRate": 11111,
+      "sampleCount": 22311,
+      "durationSeconds": 2.00801,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "B3DDDAC8A7CB09889A34D4BF9F223C4BCF51F90BD94E582DCE7EB27F9E61B878"
+    },
+    {
+      "resourceId": 4012,
+      "bytes": 4642,
+      "sampleRate": 11111,
+      "sampleCount": 4609,
+      "durationSeconds": 0.414814,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "EE8D00850A4B42A2E390D3FC235FF0DAAC6B25F21CFAE7AEAC55C91B7EF0F1F2"
+    },
+    {
+      "resourceId": 4013,
+      "bytes": 8336,
+      "sampleRate": 11111,
+      "sampleCount": 8303,
+      "durationSeconds": 0.747277,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "CAB2A7EA91E9A5BB0DA6BCB759D92851A58E64824A7266F220025E2B18022848"
+    },
+    {
+      "resourceId": 4014,
+      "bytes": 9695,
+      "sampleRate": 22222,
+      "sampleCount": 9662,
+      "durationSeconds": 0.434794,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "83508FB9EC1EE732999203005EDE435B10A22505189EEB6A6CA04863C9EAC7FD"
+    },
+    {
+      "resourceId": 4015,
+      "bytes": 15248,
+      "sampleRate": 11111,
+      "sampleCount": 15215,
+      "durationSeconds": 1.369364,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "12B0A1A6D7EE8DFB1747D3D66260F3629493B52625C0D7AE357D00E230940EF2"
+    },
+    {
+      "resourceId": 4016,
+      "bytes": 13614,
+      "sampleRate": 11111,
+      "sampleCount": 13581,
+      "durationSeconds": 1.222302,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "446ECDF3E1C88A7F6486B16FF1BCDBC16253157F07059DE20F612E419A48E9D4"
+    },
+    {
+      "resourceId": 4017,
+      "bytes": 6997,
+      "sampleRate": 11111,
+      "sampleCount": 6964,
+      "durationSeconds": 0.626766,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "4E7B6B982038042593260110698F3C055A33E98B12CF424AB297106811A52043"
+    },
+    {
+      "resourceId": 4018,
+      "bytes": 8957,
+      "sampleRate": 11111,
+      "sampleCount": 8924,
+      "durationSeconds": 0.803168,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "C2840C63BD0A225B2D5E4C6E02E147B19FCAF09D7AEB597A0EB796901A4C4310"
+    },
+    {
+      "resourceId": 4019,
+      "bytes": 4735,
+      "sampleRate": 11111,
+      "sampleCount": 4702,
+      "durationSeconds": 0.423184,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "CD5EC518317A2A89FAF4766535A72C6165F816F41FC08FFDBC81B5DCA041B86F"
+    },
+    {
+      "resourceId": 4020,
+      "bytes": 5206,
+      "sampleRate": 11111,
+      "sampleCount": 5173,
+      "durationSeconds": 0.465575,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "79CDAFDEE5BA87BCEED44A528D409ED27F46A7D03D5499A9DD5613697596F043"
+    },
+    {
+      "resourceId": 4021,
+      "bytes": 7451,
+      "sampleRate": 11111,
+      "sampleCount": 7418,
+      "durationSeconds": 0.667627,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "4219E2A6AC58E83846593A8B56BE894EF1D1A3F1A40D094D0CDED8C279E59C31"
+    },
+    {
+      "resourceId": 4022,
+      "bytes": 2591,
+      "sampleRate": 11111,
+      "sampleCount": 2558,
+      "durationSeconds": 0.230222,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "58FAEB3E131BA5AE7847506208B6806FEC94E8CB9020245FAECA0857A12EB7B2"
+    },
+    {
+      "resourceId": 4023,
+      "bytes": 2803,
+      "sampleRate": 11111,
+      "sampleCount": 2770,
+      "durationSeconds": 0.249302,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "6DFB7CF5FBBF8C3117EA5E61A5314D2431DFE19FCDFA6E24561DA87964988415"
+    },
+    {
+      "resourceId": 4024,
+      "bytes": 10911,
+      "sampleRate": 11111,
+      "sampleCount": 10878,
+      "durationSeconds": 0.97903,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "89F85DE40ECAA48764986CC3E6326CD5FE18F7D47DB8AD116D016AA424876210"
+    },
+    {
+      "resourceId": 4025,
+      "bytes": 6443,
+      "sampleRate": 11111,
+      "sampleCount": 6410,
+      "durationSeconds": 0.576906,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "B9F278308A8799E8F8611B5718417C075AF4CBF25A659ABF4E55F078459044EB"
+    },
+    {
+      "resourceId": 4026,
+      "bytes": 3118,
+      "sampleRate": 11111,
+      "sampleCount": 3085,
+      "durationSeconds": 0.277653,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "87C40B2B703F87A343936941D0986ACD6F76E4E3DCFFDC7D4AC54A190170B559"
+    },
+    {
+      "resourceId": 5000,
+      "bytes": 4022,
+      "sampleRate": 11111,
+      "sampleCount": 3989,
+      "durationSeconds": 0.359014,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "D4EE63E50079308B91AAEBC70D7D66FD5E886864BB3553C012C10A2336FF7CB0"
+    },
+    {
+      "resourceId": 5001,
+      "bytes": 10563,
+      "sampleRate": 11111,
+      "sampleCount": 10530,
+      "durationSeconds": 0.947709,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "4C6AB06F8F531B981F49C9D6CE611C93E234AD53F6496187061860940D90E7C2"
+    },
+    {
+      "resourceId": 5002,
+      "bytes": 26127,
+      "sampleRate": 11111,
+      "sampleCount": 26094,
+      "durationSeconds": 2.348483,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "0C6EA04B5F0B6D8E2E86B289998E0A0E8AB7FA485297F4326FCFDE8A7878A2F2"
+    },
+    {
+      "resourceId": 5003,
+      "bytes": 16937,
+      "sampleRate": 11111,
+      "sampleCount": 16904,
+      "durationSeconds": 1.521375,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "1AD0E6C4C07CDA98B2873D733402E371553DEFE52CB493C6F6CB5CFC96F032D3"
+    },
+    {
+      "resourceId": 6000,
+      "bytes": 8021,
+      "sampleRate": 11111,
+      "sampleCount": 7988,
+      "durationSeconds": 0.718927,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "260E5DA0F8B25CCBD7F48B57EC18C37D8D5233F65A7D425F2053712E80945397"
+    },
+    {
+      "resourceId": 8000,
+      "bytes": 226423,
+      "sampleRate": 11111,
+      "sampleCount": 226390,
+      "durationSeconds": 20.375304,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "82B8ED1801DCC72831E49E5884D530495B4579B145FC10DDB1741FE98587419A"
+    },
+    {
+      "resourceId": 8001,
+      "bytes": 101520,
+      "sampleRate": 11111,
+      "sampleCount": 101487,
+      "durationSeconds": 9.133921,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "453308DEB1073A672CA82BB227122EE396D332D906CB8575D2AE2291C296A741"
+    },
+    {
+      "resourceId": 8002,
+      "bytes": 21217,
+      "sampleRate": 11111,
+      "sampleCount": 21184,
+      "durationSeconds": 1.906579,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "BF79C695A23B6FCB700DEFD9608377B944C655145B4BBA960C71D7236063A6DC"
+    },
+    {
+      "resourceId": 8003,
+      "bytes": 25889,
+      "sampleRate": 11111,
+      "sampleCount": 25856,
+      "durationSeconds": 2.327063,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "5458D346E3AE71818CB2E8774B8AD087E884F60563F2F48DDBF63B8E94262BD6"
+    },
+    {
+      "resourceId": 8004,
+      "bytes": 20001,
+      "sampleRate": 11111,
+      "sampleCount": 19968,
+      "durationSeconds": 1.797138,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "1778B6896F5A596ACE0AF004DE566F1C3C4A950C34C17C0534BF0AE27611F1A6"
+    },
+    {
+      "resourceId": 8005,
+      "bytes": 304281,
+      "sampleRate": 11111,
+      "sampleCount": 304248,
+      "durationSeconds": 27.382594,
+      "blockTypes": [
+        1
+      ],
+      "sha256": "7F3603A55E638517C54765A43F8E68E88B04C7BA7B4C6E5B1B19DD45D458A4D4"
+    }
+  ]
+}

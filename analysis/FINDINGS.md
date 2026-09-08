@@ -125,6 +125,20 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   timer uses the 15.6 ms Windows cadence instead of allowing a requested 16 ms
   interval to quantize to two ticks on affected systems.
 
+## Audio
+
+- `AUDIO_RESOURCES.md` catalogs all 133 custom type-2001 Creative VOC assets
+  and the recovered call-site bindings. All decode as unsigned 8-bit mono PCM;
+  every resource referenced by the native sound table is present.
+- The original loader at `0x0040AA64` establishes the sixteen character voices
+  in fighter-constructor order. `0x0041A570` loads the projectile cue bank used
+  by the 25-way component dispatcher. The native tables preserve both orders.
+- The native renderer feeds a four-buffer, 22,050 Hz waveOut stream and mixes
+  looping music with eight concurrent effect/voice channels. This avoids the
+  single-channel `PlaySound` limitation while retaining the original VOC sample
+  bytes and rates. ROUND, round-number, FIGHT, FINISH HIM/HER and FATALITY cues
+  are attached to their recovered animation/state transitions.
+
 ## Registration/full-version gate
 
 - The full-version flag is byte `0x00435B5C`.

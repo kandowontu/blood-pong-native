@@ -22,7 +22,8 @@ Static analysis is performed without launching the legacy executable. Reproducib
 
 The native build currently includes the original title, selection, versus,
 arena and Credits presentation; the exact 16-fighter resource mapping; all
-three arena backdrops; embedded VOC music; keyboard and XInput gamepad
+three arena backdrops; concurrent embedded VOC music, announcer, selection
+voices, impacts, and character-projectile effects; keyboard and XInput gamepad
 controls; gamepad assignment/dead-zone/vibration options; health and super
 state using the original 186/154 ranges; animated fighter damage frames; fighter
 projectile banks and all 49 constructor-defined components recovered from the
@@ -47,6 +48,7 @@ cmake -S . -B build-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-msvc --config Release
 python tools/verify_embedded_resources.py analysis/extracted/manifest.json "build-msvc/bin/Blood Pong.exe"
 python tools/check_presentation_stability.py "build-msvc/bin/Blood Pong.exe"
+python tools/audit_audio_resources.py analysis/extracted/type_2001_custom_2001 analysis/disassembly/AUDIO_RESOURCES.json analysis/disassembly/AUDIO_RESOURCES.md
 ```
 
 The final executable imports only standard Windows system libraries
