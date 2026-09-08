@@ -205,7 +205,9 @@ struct App {
     std::array<int, XUSER_MAX_COUNT> vibrationTicks{};
     int cheatSelection{};
     std::array<bool, 6> cheats{};
+    float player1X{50.0f};
     float player1Y{189.0f};
+    float player2X{482.0f};
     float player2Y{189.0f};
     float ballX{264.0f};
     float ballY{208.0f};
@@ -900,8 +902,9 @@ void renderMatch() {
     drawBitmap(g_app.matchBackdrops[static_cast<std::size_t>(g_app.matchStage)], kArtX, kArtY);
     const auto& leftPaddle = activePaddleSprite(0);
     const auto& rightPaddle = activePaddleSprite(1);
-    drawSprite(leftPaddle, kArtX + 24, kArtY + static_cast<int>(g_app.player1Y));
-    drawSprite(rightPaddle, kArtX + 520 - rightPaddle.width,
+    drawSprite(leftPaddle, kArtX + static_cast<int>(g_app.player1X),
+               kArtY + static_cast<int>(g_app.player1Y));
+    drawSprite(rightPaddle, kArtX + static_cast<int>(g_app.player2X),
                kArtY + static_cast<int>(g_app.player2Y), true);
     for (const auto& projectile : g_app.projectiles) {
         if (!projectile.active) continue;
@@ -1207,7 +1210,12 @@ void resetBall(int direction) {
 }
 
 void beginRound(int serveDirection) {
+    // 0x0040D3A2/0x0040D4FC initialize the original 12x54 collision boxes at
+    // x=50 and x=482. The two horizontal movement regions are 0..200 and
+    // 344..544; the shared vertical region is 0..432.
+    g_app.player1X = 50.0f;
     g_app.player1Y = 189.0f;
+    g_app.player2X = 482.0f;
     g_app.player2Y = 189.0f;
     g_app.health = {kMaximumHealth, kMaximumHealth};
     g_app.turbo = {kMaximumTurbo, kMaximumTurbo};
@@ -1407,7 +1415,19 @@ float gamepadVertical(int pad) {
     const float normalized = static_cast<float>(gamepad.sThumbLY) / 32767.0f;
     const float deadZone = static_cast<float>(g_app.gamepadDeadZone) / 100.0f;
     if (std::abs(normalized) <= deadZone) return 0.0f;
-    return -std::clamp(normalized, -1.0f, 1.0f);
+    return normalized > 0.0f ? -1.0f : 1.0f;
+}
+
+float gamepadHorizontal(int pad) {
+    if (pad < 0 || pad >= XUSER_MAX_COUNT ||
+        !g_app.gamepadConnected[static_cast<std::size_t>(pad)]) return 0.0f;
+    const auto& gamepad = g_app.gamepads[static_cast<std::size_t>(pad)].Gamepad;
+    if (gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) return -1.0f;
+    if (gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) return 1.0f;
+    const float normalized = static_cast<float>(gamepad.sThumbLX) / 32767.0f;
+    const float deadZone = static_cast<float>(g_app.gamepadDeadZone) / 100.0f;
+    if (std::abs(normalized) <= deadZone) return 0.0f;
+    return normalized > 0.0f ? 1.0f : -1.0f;
 }
 
 void damagePlayer(int player, int amount) {
@@ -1466,7 +1486,7 @@ void launchComponent(int player, int componentIndex) {
         projectile.lifetime = 0;
         const auto& sprite = activeProjectileSprite(projectile);
         const auto& paddle = g_app.standingPaddles[static_cast<std::size_t>(character)];
-        const float paddleLeft = player == 0 ? 24.0f : 520.0f - paddle.width;
+        const float paddleLeft = player == 0 ? g_app.player1X : g_app.player2X;
         const float paddleRight = paddleLeft + paddle.width;
         projectile.x = player == 0 ? paddleRight : paddleLeft - sprite.width;
         projectile.y = (player == 0 ? g_app.player1Y : g_app.player2Y) +
@@ -1666,7 +1686,7 @@ void triggerPaddleAttack(int player, int attack) {
     const auto& paddle = activePaddleSprite(player);
     const int ballWidth = g_app.ballSprite ? g_app.ballSprite.width : 16;
     const int ballHeight = g_app.ballSprite ? g_app.ballSprite.height : 16;
-    const float paddleX = player == 0 ? 24.0f : 520.0f - static_cast<float>(paddle.width);
+    const float paddleX = player == 0 ? g_app.player1X : g_app.player2X;
     const bool horizontallyClose = player == 0
         ? g_app.ballX <= paddleX + paddle.width + 34.0f && g_app.ballX + ballWidth >= paddleX
         : g_app.ballX + ballWidth >= paddleX - 34.0f && g_app.ballX <= paddleX + paddle.width;
@@ -1751,7 +1771,7 @@ void updateProjectiles() {
 
         const int target = 1 - projectile.owner;
         const auto& targetSprite = target == 0 ? left : right;
-        const float targetX = target == 0 ? 24.0f : 520.0f - targetSprite.width;
+        const float targetX = target == 0 ? g_app.player1X : g_app.player2X;
         const float targetY = target == 0 ? g_app.player1Y : g_app.player2Y;
         const bool armed = projectile.originalType != 8 || projectile.age >= 20;
         const bool collides = armed && projectile.x + width >= targetX &&
@@ -1879,54 +1899,83 @@ void updateMatch() {
         return;
     }
 
-    constexpr float paddleSpeed = 4.2f;
-    float player1Move = 0.0f;
+    // The shared movement routine at 0x0040B431 uses eight pixels per update
+    // in all four directions. Holding Turbo while moving vertically consumes
+    // two gauge units and adds a five-pixel boost; an unheld Turbo key restores
+    // one unit per update. Horizontal movement is deliberately not boosted.
+    constexpr float paddleSpeed = 8.0f;
+    constexpr float turboVerticalBoost = 5.0f;
+    float player1MoveX = 0.0f;
+    float player1MoveY = 0.0f;
     if (g_app.player1Pad >= 0) {
-        player1Move = gamepadVertical(g_app.player1Pad);
+        player1MoveX = gamepadHorizontal(g_app.player1Pad);
+        player1MoveY = gamepadVertical(g_app.player1Pad);
     } else {
-        if (GetAsyncKeyState('W') & 0x8000) player1Move -= 1.0f;
-        if (GetAsyncKeyState('S') & 0x8000) player1Move += 1.0f;
+        if (GetAsyncKeyState('A') & 0x8000) player1MoveX -= 1.0f;
+        if (GetAsyncKeyState('D') & 0x8000) player1MoveX += 1.0f;
+        if (GetAsyncKeyState('W') & 0x8000) player1MoveY -= 1.0f;
+        if (GetAsyncKeyState('S') & 0x8000) player1MoveY += 1.0f;
     }
     const bool player1Turbo = g_app.player1Pad >= 0
         ? (g_app.gamepads[static_cast<std::size_t>(g_app.player1Pad)].Gamepad.wButtons &
            XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0
         : (GetAsyncKeyState('5') & 0x8000) != 0;
-    const float player1Speed = player1Turbo && g_app.turbo[0] > 0
-        ? paddleSpeed * 1.65f : paddleSpeed;
-    if (player1Turbo && player1Move != 0.0f && g_app.turbo[0] > 0) {
-        --g_app.turbo[0];
-    } else if ((g_app.frameCounter & 3) == 0) {
+    float player1VerticalSpeed = paddleSpeed;
+    if (player1Turbo && player1MoveY != 0.0f && g_app.turbo[0] >= 2) {
+        g_app.turbo[0] -= 2;
+        player1VerticalSpeed += turboVerticalBoost;
+    } else if (!player1Turbo) {
         g_app.turbo[0] = std::min(kMaximumTurbo, g_app.turbo[0] + 1);
     }
-    if (g_app.frozenTicks[0] == 0) g_app.player1Y += player1Move * player1Speed;
+    if (g_app.frozenTicks[0] == 0) {
+        g_app.player1X += player1MoveX * paddleSpeed;
+        g_app.player1Y += player1MoveY * player1VerticalSpeed;
+    }
     if (g_app.playerCount == 2) {
-        float player2Move = 0.0f;
+        float player2MoveX = 0.0f;
+        float player2MoveY = 0.0f;
         if (g_app.player2Pad >= 0) {
-            player2Move = gamepadVertical(g_app.player2Pad);
+            player2MoveX = gamepadHorizontal(g_app.player2Pad);
+            player2MoveY = gamepadVertical(g_app.player2Pad);
         } else {
-            if (GetAsyncKeyState(VK_UP) & 0x8000) player2Move -= 1.0f;
-            if (GetAsyncKeyState(VK_DOWN) & 0x8000) player2Move += 1.0f;
+            if (GetAsyncKeyState(VK_LEFT) & 0x8000) player2MoveX -= 1.0f;
+            if (GetAsyncKeyState(VK_RIGHT) & 0x8000) player2MoveX += 1.0f;
+            if (GetAsyncKeyState(VK_UP) & 0x8000) player2MoveY -= 1.0f;
+            if (GetAsyncKeyState(VK_DOWN) & 0x8000) player2MoveY += 1.0f;
         }
         const bool player2Turbo = g_app.player2Pad >= 0
             ? (g_app.gamepads[static_cast<std::size_t>(g_app.player2Pad)].Gamepad.wButtons &
                XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0
             : (GetAsyncKeyState('0') & 0x8000) != 0;
-        const float player2Speed = player2Turbo && g_app.turbo[1] > 0
-            ? paddleSpeed * 1.65f : paddleSpeed;
-        if (player2Turbo && player2Move != 0.0f && g_app.turbo[1] > 0) {
-            --g_app.turbo[1];
-        } else if ((g_app.frameCounter & 3) == 0) {
+        float player2VerticalSpeed = paddleSpeed;
+        if (player2Turbo && player2MoveY != 0.0f && g_app.turbo[1] >= 2) {
+            g_app.turbo[1] -= 2;
+            player2VerticalSpeed += turboVerticalBoost;
+        } else if (!player2Turbo) {
             g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
         }
-        if (g_app.frozenTicks[1] == 0) g_app.player2Y += player2Move * player2Speed;
-    } else {
-        const float target = g_app.ballY - 22.0f;
         if (g_app.frozenTicks[1] == 0) {
-            g_app.player2Y += std::clamp(target - g_app.player2Y, -2.85f, 2.85f);
+            g_app.player2X += player2MoveX * paddleSpeed;
+            g_app.player2Y += player2MoveY * player2VerticalSpeed;
         }
+    } else {
+        // CPU paddles use the same eight-pixel step and half-court bounds. The
+        // original character callbacks choose attacks independently; position
+        // prediction here follows the live ball in both axes.
+        const float targetX = std::clamp(g_app.ballX - 6.0f, 344.0f, 532.0f);
+        const float targetY = g_app.ballY - 22.0f;
+        if (g_app.frozenTicks[1] == 0) {
+            g_app.player2X += std::clamp(targetX - g_app.player2X,
+                                         -paddleSpeed, paddleSpeed);
+            g_app.player2Y += std::clamp(targetY - g_app.player2Y,
+                                         -paddleSpeed, paddleSpeed);
+        }
+        g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
     }
-    g_app.player1Y = std::clamp(g_app.player1Y, 58.0f, 366.0f);
-    g_app.player2Y = std::clamp(g_app.player2Y, 58.0f, 366.0f);
+    g_app.player1X = std::clamp(g_app.player1X, 0.0f, 188.0f);
+    g_app.player2X = std::clamp(g_app.player2X, 344.0f, 532.0f);
+    g_app.player1Y = std::clamp(g_app.player1Y, 0.0f, 378.0f);
+    g_app.player2Y = std::clamp(g_app.player2Y, 0.0f, 378.0f);
     for (int attack = 0; attack < 3; ++attack) {
         const auto button = static_cast<CombatButton>(attack);
         if (combatButtonPressed(0, button)) {
@@ -1978,9 +2027,10 @@ void updateMatch() {
     }
     const auto& left = g_app.standingPaddles[g_app.selectedCharacters[0]];
     const auto& right = g_app.standingPaddles[g_app.selectedCharacters[1]];
-    const float leftEdge = 24.0f + std::max(8, left.width);
-    const float rightEdge = 520.0f - std::max(8, right.width);
-    if (g_app.ballVelocityX < 0 && g_app.ballX <= leftEdge && g_app.ballX + ballWidth >= 24.0f &&
+    const float leftEdge = g_app.player1X + std::max(8, left.width);
+    const float rightEdge = g_app.player2X;
+    if (g_app.ballVelocityX < 0 && g_app.ballX <= leftEdge &&
+        g_app.ballX + ballWidth >= g_app.player1X &&
         g_app.ballY + ballHeight >= g_app.player1Y &&
         g_app.ballY <= g_app.player1Y + std::max(54, left.height)) {
         g_app.ballX = leftEdge;
@@ -1991,7 +2041,8 @@ void updateMatch() {
         g_app.super[0] = std::min(kMaximumSuper, g_app.super[0] + 7);
     }
     if (g_app.ballVelocityX > 0 && g_app.ballX + ballWidth >= rightEdge &&
-        g_app.ballX <= 520.0f && g_app.ballY + ballHeight >= g_app.player2Y &&
+        g_app.ballX <= g_app.player2X + right.width &&
+        g_app.ballY + ballHeight >= g_app.player2Y &&
         g_app.ballY <= g_app.player2Y + std::max(54, right.height)) {
         g_app.ballX = rightEdge - ballWidth;
         g_app.ballVelocityX = std::max(-6.4f, -g_app.ballVelocityX * 1.035f);

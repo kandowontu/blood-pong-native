@@ -101,8 +101,8 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   Palm's four extra-ball trajectories, So Frio's rising/drop and mirrored ice
   forms, One Eye's moving double, Show Lin/Dawg Cau's giant effect, Omoh's
   accelerating lob, Pain's full-height apparition, and Dawg Cau's rising column.
-  Exact movement timing and some secondary status semantics remain subject to
-  semantic comparison as the class-method audit progresses.
+  Some secondary status semantics remain subject to semantic comparison as the
+  class-method audit progresses.
 
 ## Input and match presentation
 
@@ -110,6 +110,13 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   fighter-field copies that distinguish Attack 1/2/3, Turbo and Super. The
   native keyboard defaults now match the original (`W/S`, `1/2/3`, `5`, `4`
   for player 1 and arrows, `6/7/8`, `0`, `9` for player 2).
+- `0x0040B431` consumes the four recovered direction fields at an exact
+  eight-pixel step. Turbo adds five pixels only to vertical movement, drains two
+  of 58 units per update, and otherwise regenerates one unit per update. Fighter
+  construction establishes the exact half-court x bounds `0..200` and
+  `344..544`, the shared y bounds `0..432`, and initial x positions 50/482. The
+  native match now preserves these four-direction constraints for keyboard and
+  both XInput axes.
 - `0x00413CF8` loads the type-2023 ROUND, digits 1–3, and FIGHT banks.
   `0x004141EC` advances them on a five-update cadence, swaps banks at stages 19
   and 37, holds the middle FIGHT frame during stages 43–49, and releases play at

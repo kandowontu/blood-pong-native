@@ -39,6 +39,15 @@ copies. Attack scan codes are stored at fighter offsets `+0x133` through
   and left-Control attack bindings. Those bindings have therefore been removed.
 - The native port maps XInput `X/A/B` to the three attacks, `Y` to Super, and
   right shoulder to Turbo while retaining the exact original keyboard defaults.
+- The shared movement routine at `0x0040B431` reads all four direction fields,
+  not just Up/Down. It moves eight pixels per update. Turbo applies only while
+  moving vertically: it consumes two of the original 58 gauge units and adds a
+  five-pixel step; while Turbo is not held the gauge restores one unit per
+  update. The native keyboard and both controller axes follow this behavior.
+- Player 1 is constrained to horizontal collision-box edges `0..200`, player 2
+  to `344..544`, and both to vertical edges `0..432`. The 12x54 collision boxes
+  therefore use left-coordinate ranges `0..188` and `344..532`, and top range
+  `0..378`. Constructor initialization places them at x=50 and x=482.
 
 `audit_combo_state_machines.py` deterministically exercises those original
 recognizers against a synthetic fighter/input object and emits every shortest

@@ -36,8 +36,8 @@ mode uses the four recovered nine-battle ladders, the original KONTINUE panel
 and countdown, and the original GAME OVER cues. Presentation uses a persistent scaled
 backbuffer with a single final window copy, eliminating the live black clear
 that caused flicker. The gameplay/class-method audit is still being used to
-replace provisional movement timing and the most specialized secondary
-status-effect behavior before a preservation release is declared 1:1 complete.
+replace the remaining specialized secondary status-effect behavior before a
+preservation release is declared 1:1 complete.
 
 ## Reproducible Windows build
 
