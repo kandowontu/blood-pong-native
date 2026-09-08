@@ -43,8 +43,10 @@ including the normal secondary ball and wall-only decoy. The full-Super flag,
 five-update gauge drain, sixteen-entry fighter-to-effect map, and all ten
 temporary ball-status branches are also reconstructed. The gameplay/class-
 method audit remains the authority for closing the remaining fighter AI,
-damage-audio, projectile-edge-case, and end-state fidelity work before a
-preservation release is declared 1:1 complete.
+shared-projectile impact-state, and end-state fidelity work before a
+preservation release is declared 1:1 complete. Fighter-specific projectile and
+outer-wall reaction pairs, plus all specialized projectile callbacks, now use
+the recovered constructor and state-machine behavior.
 
 ## Reproducible Windows build
 

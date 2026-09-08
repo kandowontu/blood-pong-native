@@ -29,3 +29,40 @@ Recovered from the 25-way switch at `0x0041ACB5`. Resource banks are cross-refer
 | 22 | `0x0041AFFF` | `0x0041B8F4` | embedded resource | type 2022, IDs 260–263 | 64×26 |
 | 23 | `0x0041AF87` | `0x0041B8F4` | embedded resource | type 2022, IDs 250–253 | 64×26 |
 | 24 | `0x0041AD19` | `0x0041D49C` | embedded resource | type 2022, IDs 500–502 | 14×62 |
+
+## Recovered specialized behavior
+
+- Type 1 is a 516-pixel beam. It awards 30 Super points when launched outside
+  an active Super, travels at 14 pixels per update, damages only once, and
+  remains visible until its leading edge leaves the playfield.
+- Type 7 rises at nine pixels per update, waits until its bottom is more than
+  100 pixels above the playfield, then drops from the variant-specific x
+  coordinate. It replaces the struck fighter's behavior rather than applying
+  conventional projectile damage.
+- Type 8 copies the owner's paddle. Its collision rectangle is active
+  immediately, but the sprite is hidden for the first 20 updates. The callback
+  counts down from 100 and exposes it when the count reaches 80.
+- Type 9 is an independent ball. It tests the vertical bounds before moving,
+  reverses without clamping, damages once on fighter contact, and is destroyed
+  after either horizontal edge exit.
+- Type 11 copies the owner's paddle and travels at nine pixels per update. On
+  contact it toggles the copy's mirror flag, relocates six pixels into the
+  struck fighter, continues in the same direction, and exits that side.
+- Type 14 is a 60-stage, five-updates-per-stage edge effect whose collision
+  rectangle changes with the current stage.
+- Type 17 starts at the near edge of the owner's paddle (or right-aligned for
+  player two), rises at eight pixels per update, and travels horizontally at
+  five pixels per update except in mode 22, which uses seven. Its first four
+  gravity stages subtract one from vertical velocity; later stages add two.
+- Type 20 is a full-height, far-side effect. Its callback scans the opposing
+  fighter in 30-pixel vertical increments over two phases, changes the target
+  behavior on contact, then destroys itself.
+- Type 24 spawns in the opponent's movement half. Mode 25 measures a random
+  low-six-bit offset from the near bound, while mode 26 measures the sprite's
+  right edge backward from the far bound. It starts 452..515 pixels down,
+  rises at four pixels per update, drifts left or right at two, and reflects
+  within the target half's ten-pixel insets.
+
+The shared callback at `0x0041B8F4` covers the remaining animated projectile
+types. Its per-resource animation and impact-state branches are retained as a
+separate fidelity item rather than conflated with these specialized handlers.

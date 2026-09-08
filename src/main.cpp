@@ -375,6 +375,15 @@ constexpr std::array<int, 16> kFighterVoiceIds{
     2000, 2004, 2001, 2005, 2002, 2007, 2003, 2006,
     2010, 2014, 2011, 2015, 2012, 2017, 2013, 2016};
 
+// Each fighter constructor stores two pointers into the sixteen-sound bank
+// loaded by 0x0040AA64. +0xA0 selects one of a two-sound projectile-damage
+// pair; +0xA4 selects the corresponding ball-wall pair. Values here are the
+// zero-based offsets from original address 0x00435610.
+constexpr std::array<int, 16> kProjectileDamageSoundBase{
+    14, 12, 10, 14, 14, 8, 8, 8, 8, 10, 8, 14, 14, 8, 14, 10};
+constexpr std::array<int, 16> kBallDamageSoundBase{
+    6, 4, 2, 6, 6, 0, 0, 0, 0, 2, 0, 6, 6, 0, 6, 2};
+
 // Start cues used by the projectile dispatcher at 0x0041ACB5. Type four's
 // mode-11 branch substitutes resource 3028 for the ordinary 3008 cue.
 constexpr std::array<int, 25> kProjectileSoundIds{
@@ -1049,9 +1058,14 @@ void renderMatch() {
     }
     for (const auto& projectile : g_app.projectiles) {
         if (!projectile.active) continue;
+        // Type 8 remains collision-active but invisible for its first twenty
+        // updates; 0x0041C57C exposes it when the 100-count reaches 80.
+        if (projectile.originalType == 8 && projectile.age < 20) continue;
         const auto& sprite = activeProjectileSprite(projectile);
         drawSprite(sprite, kArtX + static_cast<int>(projectile.x),
-                   kArtY + static_cast<int>(projectile.y), projectile.owner == 1);
+                   kArtY + static_cast<int>(projectile.y),
+                   (projectile.owner == 1) ^
+                       (projectile.originalType == 11 && projectile.secondaryPhase));
     }
     const bool showBall = !g_app.roundIntroActive &&
         g_app.currentKode != VersusKode::ballDisabled &&
@@ -1656,9 +1670,16 @@ float gamepadHorizontal(int pad) {
     return normalized > 0.0f ? 1.0f : -1.0f;
 }
 
-void damagePlayer(int player, int amount) {
+void damagePlayer(int player, int amount, bool fromBall = false) {
     if (g_app.matchPhase != MatchPhase::playing || g_app.roundIntroActive) return;
     if (g_app.cheats[static_cast<std::size_t>(player)]) return;
+    const int character = std::clamp(
+        g_app.selectedCharacters[static_cast<std::size_t>(player)], 0, 15);
+    const auto& bases = fromBall ? kBallDamageSoundBase
+                                 : kProjectileDamageSoundBase;
+    const int soundIndex = bases[static_cast<std::size_t>(character)] +
+        static_cast<int>(GetTickCount() & 1);
+    playEffect(g_app.fighterVoices[static_cast<std::size_t>(soundIndex)], 0.9f);
     const int pad = player == 0 ? g_app.player1Pad : g_app.player2Pad;
     if (g_app.vibrationEnabled && g_app.xinputSetState && pad >= 0 && pad < XUSER_MAX_COUNT) {
         XINPUT_VIBRATION vibration{32000, 18000};
@@ -1783,6 +1804,7 @@ void launchComponent(int player, int componentIndex) {
             // Omoh's lob starts at -8 vertical velocity. Mode 22 is seven
             // pixels/tick horizontally; its other mode is five (0x0041D1DC).
             const float speed = component.delay == 22 ? 7.0f : 5.0f;
+            projectile.x = player == 0 ? paddleLeft : paddleRight - sprite.width;
             projectile.velocityX = player == 0 ? speed : -speed;
             projectile.velocityY = -8.0f;
         } else if (component.originalType == 20) {
@@ -1795,13 +1817,21 @@ void launchComponent(int player, int componentIndex) {
             projectile.velocityY = 0.0f;
             projectile.lifetime = 30;
         } else if (component.originalType == 24) {
-            // Dawg Cau's falling column starts near the lower boundary, rises
-            // at four pixels/tick and drifts left or right by two.
-            const int seed = static_cast<int>((g_app.frameCounter + player * 29) & 63);
-            projectile.x = player == 0 ? paddleLeft + seed
-                                       : paddleRight - sprite.width - seed;
-            projectile.y = 452.0f - sprite.height;
-            projectile.velocityX = ((g_app.frameCounter >> 2) & 1) ? 2.0f : -2.0f;
+            // 0x0041D49C chooses a random point in the target's half from its
+            // +0x108/+0x10C movement bounds. Mode 25 measures from the near
+            // bound; mode 26 measures the projectile's right edge backward
+            // from the far bound. A separate random value starts it 452..515
+            // pixels down before it rises at four pixels per update.
+            const int target = 1 - player;
+            const float targetMinimum = target == 0 ? 0.0f : 344.0f;
+            const float targetMaximum = target == 0 ? 200.0f : 544.0f;
+            const float horizontalSeed = static_cast<float>(GetTickCount() & 63);
+            projectile.x = component.delay == 25
+                ? targetMinimum + horizontalSeed
+                : targetMaximum - horizontalSeed - sprite.width;
+            projectile.y = 452.0f + static_cast<float>(GetTickCount() & 63) -
+                           sprite.height;
+            projectile.velocityX = (GetTickCount() & 1) != 0 ? -2.0f : 2.0f;
             projectile.velocityY = -4.0f;
         }
         projectile.frame = 0;
@@ -1939,8 +1969,17 @@ void updateProjectiles() {
     for (auto& projectile : g_app.projectiles) {
         if (!projectile.active) continue;
         const auto& sprite = activeProjectileSprite(projectile);
+        const int width = sprite ? sprite.width : 12;
+        const int height = sprite ? sprite.height : 12;
 
         ++projectile.age;
+        if (projectile.originalType == 9 &&
+            (projectile.y < 0.0f || projectile.y + height > 432.0f)) {
+            // The independent-ball callback at 0x0041D3F0 tests before its
+            // position update and reverses without clamping the rectangle.
+            projectile.velocityY = -projectile.velocityY;
+            playEffect(g_app.ballBounceSound, 0.7f);
+        }
         if (projectile.originalType == 7 && !projectile.secondaryPhase &&
             projectile.y + sprite.height < -100.0f) {
             projectile.secondaryPhase = true;
@@ -1978,19 +2017,12 @@ void updateProjectiles() {
         projectile.x += projectile.velocityX;
         projectile.y += projectile.velocityY;
         ++projectile.frame;
-        const int width = sprite ? sprite.width : 12;
-        const int height = sprite ? sprite.height : 12;
-
-        if (projectile.originalType == 9 &&
-            (projectile.y < 0.0f || projectile.y + height > 432.0f)) {
-            projectile.y = std::clamp(projectile.y, 0.0f,
-                                      std::max(0.0f, 432.0f - height));
-            projectile.velocityY = -projectile.velocityY;
-            playEffect(g_app.ballBounceSound, 0.7f);
-        }
         if (projectile.originalType == 24) {
-            const float minimumX = projectile.owner == 0 ? 10.0f : 282.0f;
-            const float maximumX = projectile.owner == 0 ? 262.0f : 534.0f - width;
+            const int target = 1 - projectile.owner;
+            const float targetMinimum = target == 0 ? 0.0f : 344.0f;
+            const float targetMaximum = target == 0 ? 200.0f : 544.0f;
+            const float minimumX = targetMinimum + 10.0f;
+            const float maximumX = targetMaximum - 10.0f - width;
             if (projectile.x < minimumX || projectile.x > maximumX) {
                 projectile.x = std::clamp(projectile.x, minimumX, maximumX);
                 projectile.velocityX = -projectile.velocityX;
@@ -2001,14 +2033,12 @@ void updateProjectiles() {
         const auto& targetSprite = target == 0 ? left : right;
         const float targetX = target == 0 ? g_app.player1X : g_app.player2X;
         const float targetY = target == 0 ? g_app.player1Y : g_app.player2Y;
-        const bool armed = projectile.originalType != 8 || projectile.age >= 20;
-        const bool collides = armed && projectile.x + width >= targetX &&
+        const bool collides = projectile.x + width >= targetX &&
                               projectile.x <= targetX + targetSprite.width &&
                               projectile.y + height >= targetY &&
                               projectile.y <= targetY + targetSprite.height;
         if (collides && !projectile.hasHit) {
             projectile.hasHit = true;
-            playEffect(g_app.ballHitSound, 0.8f);
             if (projectile.originalType == 6 || projectile.originalType == 7 ||
                 projectile.originalType == 8) {
                 // So Frio's zero-damage effects replace the target's behavior
@@ -2017,20 +2047,21 @@ void updateProjectiles() {
                 // a conventional damage projectile.
                 g_app.frozenTicks[static_cast<std::size_t>(target)] = 100;
             } else if (projectile.originalType == 11) {
-                // The moving double reverses after contact in 0x0041D044 and
-                // retreats through the side from which it was launched.
-                projectile.velocityX = -projectile.velocityX;
+                // 0x0041D044 toggles the copied paddle's mirror flag and
+                // relocates it six pixels into the target before it continues
+                // in the original direction and exits that side.
+                projectile.x = projectile.owner == 0
+                    ? targetX + targetSprite.width - 6.0f
+                    : targetX - 6.0f;
                 projectile.secondaryPhase = true;
             } else if (projectile.originalType == 20) {
                 g_app.frozenTicks[static_cast<std::size_t>(target)] =
                     std::max(g_app.frozenTicks[static_cast<std::size_t>(target)], 30);
             } else {
                 damagePlayer(target, projectile.damage);
-                g_app.super[static_cast<std::size_t>(projectile.owner)] =
-                    std::min(kMaximumSuper,
-                             g_app.super[static_cast<std::size_t>(projectile.owner)] + 8);
             }
-            if (projectile.originalType != 11 && projectile.originalType != 20) {
+            if (projectile.originalType != 1 && projectile.originalType != 11 &&
+                projectile.originalType != 20) {
                 projectile.active = false;
             }
         } else if (projectile.lifetime > 0 && projectile.age >= projectile.lifetime) {
@@ -2223,16 +2254,14 @@ void updateBallObject(float& x, float& y, float& velocityX, float& velocityY,
         x = static_cast<float>(kPlayfieldWidth - ballWidth);
         velocityX = -velocityX;
         collisionArmed = {true, true};
-        playEffect(g_app.ballHitSound, 0.75f);
-        damagePlayer(1, g_app.ballDamage);
+        damagePlayer(1, g_app.ballDamage, true);
         finishBallEffectAtHorizontalWall(effect, velocityX, velocityY);
         if (g_app.matchPhase != MatchPhase::playing) return;
     } else if (x < 0.0f) {
         x = 0.0f;
         velocityX = -velocityX;
         collisionArmed = {true, true};
-        playEffect(g_app.ballHitSound, 0.75f);
-        damagePlayer(0, g_app.ballDamage);
+        damagePlayer(0, g_app.ballDamage, true);
         finishBallEffectAtHorizontalWall(effect, velocityX, velocityY);
         if (g_app.matchPhase != MatchPhase::playing) return;
     }

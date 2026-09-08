@@ -96,5 +96,6 @@ The native match loop now uses the recovered center, speed, damage, playfield
 bounds, fixed fighter collision rectangles, two collision gates, all base
 outgoing-angle rules, all ten temporary status branches, and both second-ball
 modes. It also removes the earlier reconstructed serve reset, contact damage,
-Super gain, and artificial per-return acceleration. Fighter-specific outer-wall
-damage cues remain a documented fidelity item.
+Super gain, and artificial per-return acceleration. Outer-wall damage now
+chooses from each defeated fighter's constructor-defined two-sound `+0xA4`
+pair instead of using the paddle-contact cue.

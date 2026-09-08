@@ -9,6 +9,10 @@ All 133 resources of custom PE type 2001 are Creative VOC, unsigned 8-bit mono P
 - `0x004143C4` selects FINISH HIM (1005) or FINISH HER (1006).
 - `0x0040AA64` loads the sixteen character voices and UI cues 3001/3002.
 - `0x0041A570` loads the projectile sound bank used by the 25-way dispatcher.
+- Fighter constructor fields `+0xA0` and `+0xA4` point into two-sound reaction
+  pairs in the sixteen-character bank. Projectile-damage callbacks use `+0xA0`;
+  outer ball-wall hits at `0x004130BC` and `0x004131D4` use `+0xA4` and choose
+  between the pair with `GetTickCount() & 1`.
 
 ### Character-selection voices
 
@@ -30,6 +34,30 @@ All 133 resources of custom PE type 2001 are Creative VOC, unsigned 8-bit mono P
 | Lo Pan | 2017 | 0.164 s |
 | Mai Lai | 2013 | 0.205 s |
 | Baka | 2016 | 0.201 s |
+
+### Fighter reaction-pair indices
+
+The indices below address the character-selection bank in the exact order of
+the preceding table. Each entry names the first of two adjacent sounds.
+
+| Fighter | Projectile pair | Ball-wall pair |
+|---|---:|---:|
+| Fung Shwei | 14 | 6 |
+| Lo Than | 12 | 4 |
+| Jewel | 10 | 2 |
+| Raptor | 14 | 6 |
+| So Frio | 14 | 6 |
+| Nai Palm | 8 | 0 |
+| One Eye | 8 | 0 |
+| Raider | 8 | 0 |
+| Show Lin | 8 | 0 |
+| Dawg Cau | 10 | 2 |
+| Omoh | 8 | 0 |
+| Carmack | 14 | 6 |
+| Pain | 14 | 6 |
+| Lo Pan | 8 | 0 |
+| Mai Lai | 14 | 6 |
+| Baka | 10 | 2 |
 
 ### Projectile start cues
 
