@@ -252,6 +252,8 @@ struct App {
     SoundAsset fightSound{};
     SoundAsset finishHimSound{};
     SoundAsset finishHerSound{};
+    SoundAsset winSound{};
+    SoundAsset flawlessSound{};
     SoundAsset fatalitySound{};
     SoundAsset realmTransportSound{};
     SoundAsset projectileAlternateSound{};
@@ -329,6 +331,7 @@ struct App {
     bool roundIntroActive{};
     MatchPhase matchPhase{MatchPhase::playing};
     int matchPhaseTicks{};
+    int resultStage{};
     int roundWinner{-1};
     bool fatalityPerformed{};
     bool realmTransportPending{};
@@ -657,6 +660,15 @@ void playEffect(const SoundAsset& sound, float gain = 0.85f) {
     }
     if (!destination) destination = &g_app.audioVoices.front();
     *destination = {&sound, 0.0, gain};
+}
+
+int soundDurationTicks(const SoundAsset& sound) {
+    if (!g_app.soundEnabled || !sound) return 0;
+    const std::uint64_t numerator =
+        static_cast<std::uint64_t>(sound.samples.size()) * 1000u;
+    const std::uint64_t milliseconds =
+        (numerator + sound.sampleRate - 1u) / sound.sampleRate;
+    return static_cast<int>((milliseconds + 14u) / 15u);
 }
 
 void playMusic(const SoundAsset& sound) {
@@ -1201,7 +1213,7 @@ void renderMatch() {
         drawSprite(prompt, kArtX + 272 - prompt.width / 2,
                    kArtY + 216 - prompt.height / 2);
     } else if (g_app.matchPhase == MatchPhase::matchResult && g_app.roundWinner >= 0) {
-        if (g_app.fatalityPerformed) {
+        if (g_app.fatalityPerformed && g_app.resultStage >= 8) {
             drawSprite(g_app.fatalitySprite,
                        kArtX + 272 - g_app.fatalitySprite.width / 2,
                        kArtY + 230 - g_app.fatalitySprite.height / 2);
@@ -1210,8 +1222,11 @@ void renderMatch() {
             g_app.selectedCharacters[static_cast<std::size_t>(g_app.roundWinner)])]);
         message += " WINS";
         drawTextLine(message, kArtY + 145, 28, RGB(220, 0, 10), FW_HEAVY, true);
-        drawTextLine("ENTER TO CONTINUE", kArtY + 350, 13,
-                     RGB(220, 220, 220), FW_NORMAL);
+        if (g_app.health[static_cast<std::size_t>(g_app.roundWinner)] ==
+            kMaximumHealth && g_app.resultStage >= 5) {
+            drawTextLine("FLAWLESS VICTORY", kArtY + 188, 24,
+                         RGB(220, 0, 10), FW_HEAVY, true);
+        }
     }
 }
 
@@ -1472,6 +1487,7 @@ void beginRound() {
     g_app.roundIntroActive = true;
     g_app.matchPhase = MatchPhase::playing;
     g_app.matchPhaseTicks = 0;
+    g_app.resultStage = 0;
     g_app.roundWinner = -1;
     resetBall();
 }
@@ -2164,6 +2180,21 @@ bool recipeMatches(int player, const ComboRecipe& recipe) {
     return true;
 }
 
+void beginMatchResult(bool fatality) {
+    g_app.fatalityPerformed = fatality;
+    g_app.matchPhase = MatchPhase::matchResult;
+    g_app.matchPhaseTicks = 0;
+    // 0x0041459C enters result state 2 after starting the winner's
+    // character-specific voice. States 3..9 then serialize the shared WINS,
+    // optional FLAWLESS VICTORY, and optional FATALITY announcements.
+    g_app.resultStage = 2;
+    if (g_app.roundWinner >= 0) {
+        const int character = std::clamp(
+            g_app.selectedCharacters[static_cast<std::size_t>(g_app.roundWinner)], 0, 15);
+        playEffect(g_app.fighterVoices[static_cast<std::size_t>(character)], 0.9f);
+    }
+}
+
 void processCombatButton(int player, CombatButton button) {
     auto& size = g_app.comboHistorySize[player];
     auto& history = g_app.comboHistory[player];
@@ -2209,10 +2240,7 @@ void processCombatButton(int player, CombatButton button) {
             if (g_app.matchPhase == MatchPhase::finishPrompt &&
                 g_app.roundWinner == player) {
                 launchComponent(player, recipe.component);
-                g_app.fatalityPerformed = true;
-                g_app.matchPhase = MatchPhase::matchResult;
-                g_app.matchPhaseTicks = 0;
-                playEffect(g_app.fatalitySound, 1.0f);
+                beginMatchResult(true);
             } else if (g_app.matchPhase == MatchPhase::playing &&
                        !g_app.roundIntroActive) {
                 launchComponent(player, recipe.component);
@@ -2699,16 +2727,78 @@ void updateMatch() {
             }
             if (g_app.matchPhase == MatchPhase::finishPrompt &&
                 g_app.matchPhaseTicks >= 140) {
-                // 0x004144BF uses a 50% fallback and, when selected, activates
-                // component 1 or 2 for the winner before result processing.
-                if ((GetTickCount64() & 1) != 0 && g_app.roundWinner >= 0) {
-                    const int component = 1 + static_cast<int>((GetTickCount64() >> 1) & 1);
+                // 0x004144BF gives only a CPU winner the 50% fallback and,
+                // when selected, activates component 1 or 2 before result
+                // processing. Human winners simply fall through to results.
+                bool fatality = false;
+                if (g_app.playerCount == 1 && g_app.roundWinner == 1 &&
+                    (legacyRandom() & 1u) != 0) {
+                    const int component = 1 + static_cast<int>(legacyRandom() & 1u);
                     launchComponent(g_app.roundWinner, component);
-                    g_app.fatalityPerformed = true;
-                    playEffect(g_app.fatalitySound, 1.0f);
+                    fatality = true;
                 }
-                g_app.matchPhase = MatchPhase::matchResult;
-                g_app.matchPhaseTicks = 0;
+                beginMatchResult(fatality);
+            }
+        } else if (g_app.matchPhase == MatchPhase::matchResult) {
+            const int winner = std::clamp(g_app.roundWinner, 0, 1);
+            const int character = std::clamp(
+                g_app.selectedCharacters[static_cast<std::size_t>(winner)], 0, 15);
+            switch (g_app.resultStage) {
+                case 2:
+                    if (g_app.matchPhaseTicks >= soundDurationTicks(
+                            g_app.fighterVoices[static_cast<std::size_t>(character)])) {
+                        g_app.resultStage = 3;
+                        g_app.matchPhaseTicks = 0;
+                    }
+                    break;
+                case 3:
+                    if (g_app.matchPhaseTicks > 20) {
+                        g_app.resultStage = 4;
+                        g_app.matchPhaseTicks = 0;
+                        playEffect(g_app.winSound, 1.0f);
+                    }
+                    break;
+                case 4:
+                    if (g_app.matchPhaseTicks >= soundDurationTicks(g_app.winSound)) {
+                        g_app.resultStage =
+                            g_app.health[static_cast<std::size_t>(winner)] == kMaximumHealth
+                                ? 5 : 7;
+                        g_app.matchPhaseTicks = 0;
+                    }
+                    break;
+                case 5:
+                    if (g_app.matchPhaseTicks > 20) {
+                        g_app.resultStage = 6;
+                        g_app.matchPhaseTicks = 0;
+                        playEffect(g_app.flawlessSound, 1.0f);
+                    }
+                    break;
+                case 6:
+                    if (g_app.matchPhaseTicks >= soundDurationTicks(g_app.flawlessSound)) {
+                        g_app.resultStage = 7;
+                        g_app.matchPhaseTicks = 0;
+                    }
+                    break;
+                case 7:
+                    if (g_app.matchPhaseTicks > 20) {
+                        g_app.resultStage = 8;
+                        g_app.matchPhaseTicks = 0;
+                        if (g_app.fatalityPerformed) playEffect(g_app.fatalitySound, 1.0f);
+                    }
+                    break;
+                case 8:
+                    if (!g_app.fatalityPerformed ||
+                        g_app.matchPhaseTicks >= soundDurationTicks(g_app.fatalitySound)) {
+                        g_app.resultStage = 9;
+                        g_app.matchPhaseTicks = 0;
+                    }
+                    break;
+                case 9:
+                    if (g_app.matchPhaseTicks > 50) advanceAfterMatch();
+                    break;
+                default:
+                    beginMatchResult(g_app.fatalityPerformed);
+                    break;
             }
         }
         invalidate();
@@ -3035,11 +3125,6 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 }
             } else if (g_app.screen == Screen::match) {
                 if (!(lParam & (1LL << 30)) && handleKeyboardCombatKey(wParam)) return 0;
-                if ((wParam == VK_RETURN || wParam == VK_SPACE) &&
-                    g_app.matchPhase == MatchPhase::matchResult) {
-                    advanceAfterMatch();
-                    return 0;
-                }
                 if (wParam == VK_ESCAPE) {
                     g_app.screen = Screen::title;
                     playTitleMusic();
@@ -3352,7 +3437,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
     g_app.fightSound = loadOriginalVoc(instance, 1004);
     g_app.finishHimSound = loadOriginalVoc(instance, 1005);
     g_app.finishHerSound = loadOriginalVoc(instance, 1006);
-    g_app.fatalitySound = loadOriginalVoc(instance, 250);
+    g_app.winSound = loadOriginalVoc(instance, 250);
+    g_app.flawlessSound = loadOriginalVoc(instance, 1007);
+    g_app.fatalitySound = loadOriginalVoc(instance, 1008);
     g_app.realmTransportSound = loadOriginalVoc(instance, 5001);
     g_app.projectileAlternateSound = loadOriginalVoc(instance, 3028);
     g_app.projectileSecondarySound = loadOriginalVoc(instance, 3011);

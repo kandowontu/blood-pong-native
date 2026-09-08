@@ -33,7 +33,10 @@ recovered character move/secret-realm recipes, the original HUD/name resources, 
 59-stage ROUND/FIGHT presentation, two-round match flow, and the 28-stage
 FINISH HIM/HER sequence and guarded fatality path are also active. One-player
 mode uses the four recovered nine-battle ladders, the original KONTINUE panel
-and countdown, and the original GAME OVER cues. Presentation uses a persistent scaled
+and countdown, and the original GAME OVER cues. The post-finisher nine-state
+sequence now waits for the recovered fighter, WINS, optional FLAWLESS VICTORY,
+and optional FATALITY cues before advancing automatically; it has no added
+post-game prompt or secondary window. Presentation uses a persistent scaled
 backbuffer with a single final window copy, eliminating the live black clear
 that caused flicker. Default ball play now uses the recovered 16x16 center,
 five-pixel velocity, 544x432 bounds, 30-point wall damage, collision gates, and
@@ -43,7 +46,7 @@ including the normal secondary ball and wall-only decoy. The full-Super flag,
 five-update gauge drain, sixteen-entry fighter-to-effect map, and all ten
 temporary ball-status branches are also reconstructed. The gameplay/class-
 method audit remains the authority for closing the remaining upper-tier CPU
-interception nuances, shared-projectile impact-state, and end-state fidelity work before a
+interception nuances and shared-projectile impact-state fidelity work before a
 preservation release is declared 1:1 complete. Fighter-specific projectile and
 outer-wall reaction pairs, plus all specialized projectile callbacks, now use
 the recovered constructor and state-machine behavior. One-player CPU play uses

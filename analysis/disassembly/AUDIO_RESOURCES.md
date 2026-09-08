@@ -7,6 +7,9 @@ All 133 resources of custom PE type 2001 are Creative VOC, unsigned 8-bit mono P
 - `0x00413BD0` loads announcer IDs 1000-1008 and 250.
 - `0x004141EC` plays ROUND at stage 1, the round-number voice at stage 19, and FIGHT at stage 37.
 - `0x004143C4` selects FINISH HIM (1005) or FINISH HER (1006).
+- `0x0041459C` serializes the winner voice, WINS (250), optional FLAWLESS
+  VICTORY (1007), and optional FATALITY (1008), waiting for each cue before
+  advancing its nine-state result object.
 - `0x0040AA64` loads the sixteen character voices and UI cues 3001/3002.
 - `0x0041A570` loads the projectile sound bank used by the 25-way dispatcher.
 - Fighter constructor fields `+0xA0` and `+0xA4` point into two-sound reaction

@@ -147,10 +147,16 @@ is retained.
   and 16; `0x00414484` drives the 28-stage/140-update prompt. The native match
   state follows that structure and uses the exact type-2023 frames.
 - At the end of the FINISH prompt, `0x00414484` has a 50% fallback that activates
-  winner component 1 or 2. An ordinary component recipe entered by the winner
-  during the prompt also enters the fatality result path. The separate type-2023
+  winner component 1 or 2 only when the winner is CPU-controlled. An ordinary
+  component recipe entered by the winner during the prompt also enters the
+  fatality result path. The separate type-2023
   ID 250 graphic spells `FATALITY`; it is not evidence that the guarded
   `0x00408248` realm routine is a fatality.
+- `0x0041459C` is the nine-state post-finisher result object. It starts the
+  winner's character cue, waits 21 updates, plays WINS (VOC 250), optionally
+  waits 21 and plays FLAWLESS VICTORY (VOC 1007) when the winner retains all
+  186 health points, then waits 21 and conditionally plays FATALITY (VOC 1008).
+  State 9 holds 51 updates and exits automatically; there is no Enter prompt.
 - `0x004027A8` writes four alternative one-player ladders of nine opponents.
   The fifth slot is always original fighter number 10 and the ninth is always
   number 6. The native tournament view uses type-2007 ID 302 at the exact
