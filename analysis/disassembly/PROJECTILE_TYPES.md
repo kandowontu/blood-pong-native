@@ -63,6 +63,31 @@ Recovered from the 25-way switch at `0x0041ACB5`. Resource banks are cross-refer
   rises at four pixels per update, drifts left or right at two, and reflects
   within the target half's ten-pixel insets.
 
-The shared callback at `0x0041B8F4` covers the remaining animated projectile
-types. Its per-resource animation and impact-state branches are retained as a
-separate fidelity item rather than conflated with these specialized handlers.
+## Shared activation and flight chain
+
+Types 2–6, 10, 12–13, 15–16, 18–19, and 21–23 enter through
+`0x0041B8F4`. The native port now follows the callback chain rather than moving
+every projectile immediately:
+
+- Types with a nonzero `+0xA8` value run `0x0041BA2C`, advancing their launch
+  frame every three updates. Only after the terminal launch frame do they
+  switch to `0x0041BAD8`, or to `0x0041BE6C` when variant `+0x7C` is four.
+- Variant four uses the terminal launch frame as the base of a four-step
+  ping-pong cycle, advancing once every eight updates. This covers type 4,
+  Raider's variant-four type 12, and type 19.
+- Zero-launch-frame types 3 and 18 use `0x0041BFC4`, cycling every four
+  updates. Modes 12 and 13 add -2/+2 vertical velocity on every update after
+  the projectile is 50 pixels inside the target region. Mode 14 may travel to
+  x=-80/624, reverses with the recovered 30-pixel correction, and becomes an
+  ordinary projectile after returning fully inside 0..544.
+- Type 15 uses `0x0041BD68`: a three-frame/six-update cycle plus a new random
+  vertical displacement of 5..20 pixels on every update, reflected at the
+  432-pixel bounds.
+- The positive/negative mode tables at `0x0041BB16` and `0x0041BB9F` are
+  repeated after the opponent-half crossing. Modes 12/13 force vertical
+  velocity to -4/+4; modes 15/16 alter horizontal displacement by -5/+6 with
+  mirrored signs; mode 24 flips the drawing orientation. Mode 23 follows one
+  owner vertical input by four pixels.
+- Type 3 and type 21 set their one-hit guard but remain active after impact;
+  the other conventional shared-callback types enter the normal destroy state.
+  Type 6 retains its zero-damage behavior-replacement effect.

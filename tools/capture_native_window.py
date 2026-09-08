@@ -42,7 +42,7 @@ def main() -> None:
     parser.add_argument("output", type=Path)
     parser.add_argument(
         "--screen",
-        choices=("title", "credits", "select", "ladder", "kode", "unlock", "fight", "match", "kode-match", "projectile", "cheat", "configuration"),
+        choices=("title", "credits", "select", "ladder", "kode", "unlock", "fight", "match", "kode-match", "projectile", "common-projectile", "cheat", "configuration"),
         default="credits",
     )
     parser.add_argument(
@@ -92,11 +92,15 @@ def main() -> None:
         for digit in args.versus_kode:
             user32.SendMessageW(window, 0x0100, ord(digit), 0)
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
-    elif args.screen in ("select", "ladder", "fight", "match", "projectile", "cheat"):
+    elif args.screen in ("select", "ladder", "fight", "match", "projectile", "common-projectile", "cheat"):
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
-        if args.screen in ("ladder", "fight", "match", "projectile", "cheat"):
+        if args.screen == "common-projectile":
+            # Select Lo Than, whose component-three recipe exercises the
+            # shared 0x0041B8F4 activation/flight state machine (type 2).
+            user32.SendMessageW(window, 0x0100, 0x27, 0)
+        if args.screen in ("ladder", "fight", "match", "projectile", "common-projectile", "cheat"):
             user32.SendMessageW(window, 0x0100, 0x0D, 0)
-        if args.screen in ("fight", "match", "projectile", "cheat"):
+        if args.screen in ("fight", "match", "projectile", "common-projectile", "cheat"):
             user32.SendMessageW(window, 0x0100, 0x0D, 0)
         if args.screen in ("projectile", "cheat"):
             user32.SetForegroundWindow(window)
@@ -118,6 +122,11 @@ def main() -> None:
                 user32.keybd_event(key, 0, 0, 0)
                 user32.keybd_event(key, 0, 2, 0)
                 time.sleep(0.04)
+        elif args.screen == "common-projectile":
+            time.sleep(6.2)
+            for key in (0x31, 0x31, 0x31, 0x33, 0x35):
+                user32.SendMessageW(window, 0x0100, key, 0)
+                time.sleep(0.04)
     elif args.screen in ("kode", "unlock"):
         user32.SendMessageW(window, 0x0100, 0x28, 0)
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
@@ -136,7 +145,7 @@ def main() -> None:
     elif args.screen in ("match", "kode-match"):
         time.sleep(6.2)
     else:
-        time.sleep(0.28 if args.screen == "projectile" else 0.12)
+        time.sleep(0.28 if args.screen in ("projectile", "common-projectile") else 0.12)
     user32.UpdateWindow(window)
 
     rect = Rect()

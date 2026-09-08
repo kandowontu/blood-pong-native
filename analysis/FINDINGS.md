@@ -141,6 +141,13 @@ is retained.
   original embedded frames.
 - The health, Turbo, Super, round-win, and fighter-name HUD art now comes from
   original type-2004 IDs 128 and 400–403 plus type-2023 IDs 600–615.
+- The shared projectile activation routine at `0x0041B8F4` is a callback
+  dispatcher, not a single straight-line flight rule. The native state now
+  retains the three-update launch banks, the `0x0041BAD8` repeated mode table,
+  the variant-four eight-update ping-pong path, the type-3/type-18 four-update
+  path, and type 15's six-update animation with random 5..20-pixel vertical
+  displacement. Type 3 and type 21 survive their guarded first impact as in
+  the original.
 - On a knockout, the original increments the winning fighter's `+0x774` round
   count, starts a new round after just over 200 updates, and enters the finish
   path at two wins. `0x004143C4` selects FINISH HER for fighter numbers 3, 10,

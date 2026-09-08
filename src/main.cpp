@@ -152,6 +152,8 @@ struct Projectile {
     float velocityX{};
     float velocityY{};
     int frame{};
+    int visualFrame{-1};
+    int animationCounter{};
     int age{};
     int lifetime{};
     int damage{};
@@ -159,6 +161,7 @@ struct Projectile {
     int variant{};
     int mode{};
     int componentIndex{};
+    bool introComplete{true};
 };
 
 struct BallEffectState {
@@ -348,6 +351,7 @@ struct App {
     std::array<int, 2> comboHistorySize{};
     std::array<int, 2> comboTimeout{};
     std::array<int, 2> frozenTicks{};
+    std::array<float, 2> paddleMovementDeltaY{};
     std::array<Projectile, 8> projectiles{};
     std::uint32_t randomState{1};
     std::uint32_t cpuAttackAccumulator{};
@@ -1061,6 +1065,11 @@ const SpriteAsset& activeProjectileSprite(const Projectile& projectile) {
     const auto& frames = g_app.projectileTypeFrames[static_cast<std::size_t>(
         projectile.originalType)];
     if (frames.empty()) return empty;
+    if (projectile.visualFrame >= 0) {
+        const std::size_t index = std::min(
+            static_cast<std::size_t>(projectile.visualFrame), frames.size() - 1);
+        return frames[index];
+    }
     const int cadence = projectile.originalType == 14 ? 5
         : (projectile.originalType == 24 ? 6 : 3);
     std::size_t index = static_cast<std::size_t>(projectile.frame / cadence);
@@ -1091,7 +1100,8 @@ void renderMatch() {
         drawSprite(sprite, kArtX + static_cast<int>(projectile.x),
                    kArtY + static_cast<int>(projectile.y),
                    (projectile.owner == 1) ^
-                       (projectile.originalType == 11 && projectile.secondaryPhase));
+                       ((projectile.originalType == 11 || projectile.mode == 24) &&
+                        projectile.secondaryPhase));
     }
     const bool showBall = !g_app.roundIntroActive &&
         g_app.currentKode != VersusKode::ballDisabled &&
@@ -1474,6 +1484,7 @@ void beginRound() {
     g_app.comboHistorySize = {};
     g_app.comboTimeout = {};
     g_app.frozenTicks = {};
+    g_app.paddleMovementDeltaY = {};
     g_app.projectiles = {};
     g_app.cpuAttackAccumulator = 0;
     g_app.cpuSuperAccumulator = 0;
@@ -1792,6 +1803,29 @@ void launchComponent(int player, int componentIndex, bool concurrent = false,
         projectile.componentIndex = componentIndex;
         projectile.age = 0;
         projectile.lifetime = 0;
+        projectile.visualFrame = -1;
+        projectile.animationCounter = 0;
+        projectile.introComplete = true;
+        // Fifteen types share the activation callback at 0x0041B8F4. Most
+        // first play a three-update-per-frame launch bank before switching to
+        // their flight callback; the zero entries begin flight immediately.
+        constexpr std::array<int, 25> introLastFrames{
+            0, 0, 5, 0, 4, 3, 5, 0, 0, 0, 3, 0, 4,
+            5, 0, 0, 5, 0, 0, 2, 0, 4, 3, 3, 0};
+        const auto usesCommonActivation = [](int type) {
+            switch (type) {
+                case 2: case 3: case 4: case 5: case 6: case 10:
+                case 12: case 13: case 15: case 16: case 18: case 19:
+                case 21: case 22: case 23: return true;
+                default: return false;
+            }
+        };
+        if (usesCommonActivation(component.originalType)) {
+            projectile.visualFrame = 0;
+            const int last = introLastFrames[static_cast<std::size_t>(
+                component.originalType)];
+            projectile.introComplete = last == 0;
+        }
         const auto& sprite = activeProjectileSprite(projectile);
         const auto& paddle = g_app.standingPaddles[static_cast<std::size_t>(character)];
         const float paddleLeft = player == 0 ? g_app.player1X : g_app.player2X;
@@ -2296,6 +2330,124 @@ void triggerPaddleAttack(int player, int attack) {
     g_app.animationFrame[player] = attack * 6;
 }
 
+bool usesCommonProjectileStateMachine(int type) {
+    switch (type) {
+        case 2: case 3: case 4: case 5: case 6: case 10:
+        case 12: case 13: case 15: case 16: case 18: case 19:
+        case 21: case 22: case 23: return true;
+        default: return false;
+    }
+}
+
+int commonProjectileIntroLastFrame(int type) {
+    constexpr std::array<int, 25> frames{
+        0, 0, 5, 0, 4, 3, 5, 0, 0, 0, 3, 0, 4,
+        5, 0, 0, 5, 0, 0, 2, 0, 4, 3, 3, 0};
+    return type >= 0 && type < static_cast<int>(frames.size())
+        ? frames[static_cast<std::size_t>(type)] : 0;
+}
+
+void updateCommonProjectileFlight(Projectile& projectile, int width, int height) {
+    // 0x0041BE6C: variant four holds the final launch frame as the base of a
+    // four-frame ping-pong flight animation and advances it every 8 updates.
+    if (projectile.variant == 4) {
+        if (++projectile.animationCounter >= 8) {
+            projectile.animationCounter = 0;
+            const int base = commonProjectileIntroLastFrame(projectile.originalType);
+            if (projectile.frame > 0 && projectile.frame < 3) {
+                ++projectile.visualFrame;
+            } else if (projectile.frame >= 3 && projectile.frame < 5) {
+                --projectile.visualFrame;
+            }
+            if (++projectile.frame >= 5) projectile.frame = 1;
+            projectile.visualFrame = std::clamp(projectile.visualFrame, base, base + 2);
+        }
+    } else if (projectile.originalType == 3 || projectile.originalType == 18) {
+        // 0x0041BFC4 cycles the no-intro banks every four updates.
+        if (++projectile.animationCounter >= 4) {
+            projectile.animationCounter = 0;
+            const auto& frames = g_app.projectileTypeFrames[
+                static_cast<std::size_t>(projectile.originalType)];
+            projectile.visualFrame = frames.empty() ? 0
+                : (projectile.visualFrame + 1) % static_cast<int>(frames.size());
+        }
+    } else if (projectile.originalType == 15) {
+        // 0x0041BD68 cycles Mai Lai's three frames every six updates.
+        if (++projectile.animationCounter >= 6) {
+            projectile.animationCounter = 0;
+            projectile.visualFrame = (projectile.visualFrame + 1) % 3;
+        }
+    }
+
+    if (projectile.originalType == 3 || projectile.originalType == 18) {
+        // The no-intro flight callback begins modes 12/13 fifty pixels into
+        // the target's movement region and adds two vertical pixels every
+        // subsequent update, producing the recovered curved path.
+        const bool beyondTrigger = projectile.owner == 0
+            ? projectile.x + width > 394.0f
+            : projectile.x < 150.0f;
+        if (beyondTrigger) {
+            if (projectile.mode == 12) projectile.velocityY -= 2.0f;
+            if (projectile.mode == 13) projectile.velocityY += 2.0f;
+        }
+    } else {
+        const bool enteredOpponentHalf = projectile.owner == 0
+            ? projectile.x + width >= 344.0f : projectile.x <= 200.0f;
+        if (enteredOpponentHalf) {
+            // Both direction tables at 0x0041BB16/0x0041BB9F run every update
+            // after the crossing, rather than acting as one-shot transitions.
+            if (projectile.mode == 12) projectile.velocityY = -4.0f;
+            if (projectile.mode == 13) projectile.velocityY = 4.0f;
+            if (projectile.mode == 15) {
+                projectile.x += projectile.owner == 0 ? -5.0f : 5.0f;
+            }
+            if (projectile.mode == 16) {
+                projectile.x += projectile.owner == 0 ? 6.0f : -6.0f;
+            }
+            if (projectile.mode == 24) projectile.secondaryPhase = true;
+        }
+        if (projectile.mode == 23) {
+            const float ownerDelta = g_app.paddleMovementDeltaY[
+                static_cast<std::size_t>(projectile.owner)];
+            if (ownerDelta < 0.0f) projectile.y -= 4.0f;
+            else if (ownerDelta > 0.0f) projectile.y += 4.0f;
+        }
+    }
+
+    projectile.x += projectile.velocityX;
+    if (projectile.originalType == 15) {
+        const float amount = 5.0f + static_cast<float>(legacyRandom() & 0x0fu);
+        projectile.y += (legacyRandom() & 1u) != 0 ? amount : -amount;
+        if (projectile.y + height > 432.0f) {
+            projectile.y -= amount * 2.0f;
+        } else if (projectile.y < 0.0f) {
+            projectile.y += amount * 2.0f;
+        }
+    } else {
+        projectile.y += projectile.velocityY;
+    }
+
+    if ((projectile.originalType == 3 || projectile.originalType == 18) &&
+        projectile.mode == 14) {
+        // Mode 14 is allowed outside the ordinary culling region, reflects at
+        // -80/624, and reverts to ordinary mode after re-entering 0..544.
+        if (projectile.x + width > 624.0f) {
+            projectile.x -= 30.0f;
+            projectile.velocityX = -projectile.velocityX;
+            projectile.secondaryPhase = true;
+        } else if (projectile.x < -80.0f) {
+            projectile.x += 30.0f;
+            projectile.velocityX = -projectile.velocityX;
+            projectile.secondaryPhase = true;
+        }
+        if (projectile.secondaryPhase && projectile.x > 0.0f &&
+            projectile.x + width < 544.0f) {
+            projectile.secondaryPhase = false;
+            projectile.mode = 0;
+        }
+    }
+}
+
 void updateProjectiles() {
     const auto& left = activePaddleSprite(0);
     const auto& right = activePaddleSprite(1);
@@ -2306,6 +2458,21 @@ void updateProjectiles() {
         const int height = sprite ? sprite.height : 12;
 
         ++projectile.age;
+        const bool common = usesCommonProjectileStateMachine(projectile.originalType);
+        if (common && !projectile.introComplete) {
+            if (++projectile.animationCounter >= 3) {
+                projectile.animationCounter = 0;
+                projectile.visualFrame = std::min(
+                    commonProjectileIntroLastFrame(projectile.originalType),
+                    projectile.visualFrame + 1);
+                if (projectile.visualFrame >=
+                    commonProjectileIntroLastFrame(projectile.originalType)) {
+                    projectile.introComplete = true;
+                    if (projectile.variant == 4) projectile.frame = 1;
+                }
+            }
+            continue;
+        }
         if (projectile.originalType == 9 &&
             (projectile.y < 0.0f || projectile.y + height > 432.0f)) {
             // The independent-ball callback at 0x0041D3F0 tests before its
@@ -2332,24 +2499,13 @@ void updateProjectiles() {
             if (gravityStep < 5) projectile.velocityY -= 1.0f;
             else projectile.velocityY += 2.0f;
         }
-        if ((projectile.originalType == 2 || projectile.originalType == 3 ||
-             projectile.originalType == 4) && !projectile.secondaryPhase) {
-            const int width = sprite ? sprite.width : 12;
-            const bool enteredOpponentHalf = projectile.owner == 0
-                ? projectile.x + width >= 344.0f : projectile.x <= 200.0f;
-            if (enteredOpponentHalf) {
-                projectile.secondaryPhase = true;
-                // Mode dispatch table at 0x0041BB16. The horizontal offsets
-                // are mirrored in its player-two table at 0x0041BB9F.
-                if (projectile.mode == 12) projectile.velocityY = -4.0f;
-                if (projectile.mode == 13) projectile.velocityY = 4.0f;
-                if (projectile.mode == 15) projectile.x += projectile.owner == 0 ? -5.0f : 5.0f;
-                if (projectile.mode == 16) projectile.x += projectile.owner == 0 ? 6.0f : -6.0f;
-            }
+        if (common) {
+            updateCommonProjectileFlight(projectile, width, height);
+        } else {
+            projectile.x += projectile.velocityX;
+            projectile.y += projectile.velocityY;
+            ++projectile.frame;
         }
-        projectile.x += projectile.velocityX;
-        projectile.y += projectile.velocityY;
-        ++projectile.frame;
         if (projectile.originalType == 24) {
             const int target = 1 - projectile.owner;
             const float targetMinimum = target == 0 ? 0.0f : 344.0f;
@@ -2393,8 +2549,9 @@ void updateProjectiles() {
             } else {
                 damagePlayer(target, projectile.damage);
             }
-            if (projectile.originalType != 1 && projectile.originalType != 11 &&
-                projectile.originalType != 20) {
+            if (projectile.originalType != 1 && projectile.originalType != 3 &&
+                projectile.originalType != 11 && projectile.originalType != 20 &&
+                projectile.originalType != 21) {
                 projectile.active = false;
             }
         } else if (projectile.lifetime > 0 && projectile.age >= projectile.lifetime) {
@@ -2406,7 +2563,8 @@ void updateProjectiles() {
             projectile.active = false;
         } else if (projectile.originalType == 24 && projectile.y + height < 0.0f) {
             projectile.active = false;
-        } else if (projectile.x < -width || projectile.x > 544.0f) {
+        } else if (projectile.mode != 14 &&
+                   (projectile.x + width < 0.0f || projectile.x > 544.0f)) {
             projectile.active = false;
         }
     }
@@ -2854,6 +3012,7 @@ void updateMatch() {
     // one unit per update. Horizontal movement is deliberately not boosted.
     constexpr float paddleSpeed = 8.0f;
     constexpr float turboVerticalBoost = 5.0f;
+    const std::array<float, 2> previousPaddleY{g_app.player1Y, g_app.player2Y};
     float player1MoveX = 0.0f;
     float player1MoveY = 0.0f;
     if (g_app.player1Pad >= 0) {
@@ -2928,6 +3087,9 @@ void updateMatch() {
     g_app.player2X = std::clamp(g_app.player2X, 344.0f, 532.0f);
     g_app.player1Y = std::clamp(g_app.player1Y, 0.0f, 378.0f);
     g_app.player2Y = std::clamp(g_app.player2Y, 0.0f, 378.0f);
+    g_app.paddleMovementDeltaY = {
+        g_app.player1Y - previousPaddleY[0],
+        g_app.player2Y - previousPaddleY[1]};
     if (g_app.currentKode == VersusKode::randomPaddles) {
         const bool componentsIdle = std::none_of(
             g_app.projectiles.begin(), g_app.projectiles.end(),
