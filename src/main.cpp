@@ -25,6 +25,14 @@ constexpr int kMaximumHealth = 0xBA;
 constexpr int kMaximumTurbo = 0x3A;
 // The original caps the fighter's super field at 0x9A (for example 0x0040CC40).
 constexpr int kMaximumSuper = 0x9A;
+// The ball constructor at 0x0041294C uses a 544x432 playfield, a default
+// five-pixel velocity on each axis, and 30 damage at either outer wall.
+constexpr int kPlayfieldWidth = 0x220;
+constexpr int kPlayfieldHeight = 0x1B0;
+constexpr int kDefaultBallSpeed = 5;
+constexpr int kDefaultBallDamage = 0x1E;
+constexpr int kFighterCollisionWidth = 12;
+constexpr int kFighterCollisionHeight = 54;
 constexpr COLORREF kTransparent = RGB(0, 0, 0);
 
 enum class Screen {
@@ -211,8 +219,11 @@ struct App {
     float player2Y{189.0f};
     float ballX{264.0f};
     float ballY{208.0f};
-    float ballVelocityX{3.25f};
-    float ballVelocityY{2.15f};
+    float ballVelocityX{5.0f};
+    float ballVelocityY{5.0f};
+    int ballBaseSpeed{kDefaultBallSpeed};
+    int ballDamage{kDefaultBallDamage};
+    std::array<bool, 2> ballCollisionArmed{true, true};
     std::array<int, 2> score{};
     std::array<int, 2> turbo{kMaximumTurbo, kMaximumTurbo};
     int roundNumber{1};
@@ -1202,14 +1213,23 @@ void activateTitleSelection() {
     invalidate();
 }
 
-void resetBall(int direction) {
+void resetBall() {
     g_app.ballX = 264.0f;
     g_app.ballY = 208.0f;
-    g_app.ballVelocityX = 3.25f * static_cast<float>(direction);
-    g_app.ballVelocityY = 2.15f;
+    g_app.ballBaseSpeed = kDefaultBallSpeed;
+    g_app.ballDamage = kDefaultBallDamage;
+    g_app.ballCollisionArmed = {true, true};
+    // 0x00412B44 and 0x00412B5A call GetTickCount independently and use bit
+    // zero to choose the sign of each five-pixel component.
+    g_app.ballVelocityX = (GetTickCount() & 1) != 0
+        ? -static_cast<float>(g_app.ballBaseSpeed)
+        : static_cast<float>(g_app.ballBaseSpeed);
+    g_app.ballVelocityY = (GetTickCount() & 1) != 0
+        ? -static_cast<float>(g_app.ballBaseSpeed)
+        : static_cast<float>(g_app.ballBaseSpeed);
 }
 
-void beginRound(int serveDirection) {
+void beginRound() {
     // 0x0040D3A2/0x0040D4FC initialize the original 12x54 collision boxes at
     // x=50 and x=482. The two horizontal movement regions are 0..200 and
     // 344..544; the shared vertical region is 0..432.
@@ -1233,7 +1253,7 @@ void beginRound(int serveDirection) {
     g_app.matchPhase = MatchPhase::playing;
     g_app.matchPhaseTicks = 0;
     g_app.roundWinner = -1;
-    resetBall(serveDirection);
+    resetBall();
 }
 
 void beginMatch() {
@@ -1242,7 +1262,7 @@ void beginMatch() {
     g_app.fatalityPerformed = false;
     g_app.matchStage = static_cast<int>((GetTickCount64() / 17 +
         g_app.selectedCharacters[0] * 3 + g_app.selectedCharacters[1]) % 3);
-    beginRound(1);
+    beginRound();
     g_app.screen = Screen::match;
     playMatchMusic();
     invalidate();
@@ -1682,27 +1702,6 @@ bool handleKeyboardCombatKey(WPARAM key) {
 void triggerPaddleAttack(int player, int attack) {
     g_app.animationTicks[player] = std::max(g_app.animationTicks[player], 22);
     g_app.animationFrame[player] = attack * 6;
-
-    const auto& paddle = activePaddleSprite(player);
-    const int ballWidth = g_app.ballSprite ? g_app.ballSprite.width : 16;
-    const int ballHeight = g_app.ballSprite ? g_app.ballSprite.height : 16;
-    const float paddleX = player == 0 ? g_app.player1X : g_app.player2X;
-    const bool horizontallyClose = player == 0
-        ? g_app.ballX <= paddleX + paddle.width + 34.0f && g_app.ballX + ballWidth >= paddleX
-        : g_app.ballX + ballWidth >= paddleX - 34.0f && g_app.ballX <= paddleX + paddle.width;
-    const bool verticallyClose = g_app.ballY + ballHeight >=
-                                     (player == 0 ? g_app.player1Y : g_app.player2Y) - 12.0f &&
-                                 g_app.ballY <=
-                                     (player == 0 ? g_app.player1Y : g_app.player2Y) +
-                                         paddle.height + 12.0f;
-    if (!horizontallyClose || !verticallyClose) return;
-
-    const float direction = player == 0 ? 1.0f : -1.0f;
-    g_app.ballVelocityX = direction * std::min(6.4f, std::abs(g_app.ballVelocityX) + 0.65f);
-    if (attack == 0) g_app.ballVelocityY = -std::max(2.4f, std::abs(g_app.ballVelocityY));
-    if (attack == 1) g_app.ballVelocityY *= 0.55f;
-    if (attack == 2) g_app.ballVelocityY = std::max(2.4f, std::abs(g_app.ballVelocityY));
-    playEffect(g_app.ballHitSound, 0.8f);
 }
 
 void updateProjectiles() {
@@ -1842,8 +1841,7 @@ void updateMatch() {
             // before rebuilding both fighters for the next round.
             if (g_app.matchPhaseTicks > 200) {
                 g_app.roundNumber = std::min(3, g_app.score[0] + g_app.score[1] + 1);
-                const int serveDirection = g_app.roundWinner == 0 ? 1 : -1;
-                beginRound(serveDirection);
+                beginRound();
             }
         } else if (g_app.matchPhase == MatchPhase::finishPrompt) {
             // The stock game keeps the winner's component recognizer live
@@ -2018,45 +2016,103 @@ void updateMatch() {
     const float timeScale = g_app.cheats[4] ? 0.45f : 1.0f;
     g_app.ballX += g_app.ballVelocityX * timeScale;
     g_app.ballY += g_app.ballVelocityY * timeScale;
-    const int ballWidth = g_app.ballSprite ? g_app.ballSprite.width : 12;
-    const int ballHeight = g_app.ballSprite ? g_app.ballSprite.height : 12;
-    if (g_app.ballY <= 55.0f || g_app.ballY + ballHeight >= 428.0f) {
-        g_app.ballY = std::clamp(g_app.ballY, 55.0f, 428.0f - ballHeight);
+    const int ballWidth = g_app.ballSprite ? g_app.ballSprite.width : 16;
+    const int ballHeight = g_app.ballSprite ? g_app.ballSprite.height : 16;
+
+    // 0x004130AF and 0x004131CB treat the left and right playfield edges as
+    // damaging walls. The ball rebounds in place and stays in play; it is not
+    // reset after a point. Damage is the constructor's default 0x1e.
+    if (g_app.ballX + ballWidth > static_cast<float>(kPlayfieldWidth)) {
+        g_app.ballX = static_cast<float>(kPlayfieldWidth - ballWidth);
+        g_app.ballVelocityX = -g_app.ballVelocityX;
+        g_app.ballCollisionArmed = {true, true};
+        playEffect(g_app.ballHitSound, 0.75f);
+        damagePlayer(1, g_app.ballDamage);
+        if (g_app.matchPhase != MatchPhase::playing) {
+            invalidate();
+            return;
+        }
+    } else if (g_app.ballX < 0.0f) {
+        g_app.ballX = 0.0f;
+        g_app.ballVelocityX = -g_app.ballVelocityX;
+        g_app.ballCollisionArmed = {true, true};
+        playEffect(g_app.ballHitSound, 0.75f);
+        damagePlayer(0, g_app.ballDamage);
+        if (g_app.matchPhase != MatchPhase::playing) {
+            invalidate();
+            return;
+        }
+    }
+
+    // The top and bottom tests at 0x004132CC/0x00413347 use the full 0..432
+    // playfield and re-arm both paddle collision gates.
+    if (g_app.ballY < 0.0f ||
+        g_app.ballY + ballHeight > static_cast<float>(kPlayfieldHeight)) {
+        g_app.ballY = std::clamp(g_app.ballY, 0.0f,
+                                 static_cast<float>(kPlayfieldHeight - ballHeight));
         g_app.ballVelocityY = -g_app.ballVelocityY;
+        g_app.ballCollisionArmed = {true, true};
         playEffect(g_app.ballBounceSound, 0.65f);
     }
-    const auto& left = g_app.standingPaddles[g_app.selectedCharacters[0]];
-    const auto& right = g_app.standingPaddles[g_app.selectedCharacters[1]];
-    const float leftEdge = g_app.player1X + std::max(8, left.width);
+
+    const float leftEdge = g_app.player1X + kFighterCollisionWidth;
     const float rightEdge = g_app.player2X;
-    if (g_app.ballVelocityX < 0 && g_app.ballX <= leftEdge &&
+    const bool touchesPlayer1 = g_app.ballX < leftEdge &&
         g_app.ballX + ballWidth >= g_app.player1X &&
         g_app.ballY + ballHeight >= g_app.player1Y &&
-        g_app.ballY <= g_app.player1Y + std::max(54, left.height)) {
-        g_app.ballX = leftEdge;
-        g_app.ballVelocityX = std::min(6.4f, -g_app.ballVelocityX * 1.035f);
-        g_app.ballVelocityY += (g_app.ballY - g_app.player1Y - 22.0f) * 0.025f;
+        g_app.ballY < g_app.player1Y + kFighterCollisionHeight;
+    if (touchesPlayer1 && g_app.ballCollisionArmed[0]) {
+        g_app.ballCollisionArmed[0] = false;
+        g_app.ballCollisionArmed[1] = true;
         playEffect(g_app.ballHitSound, 0.75f);
-        damagePlayer(0, 3);
-        g_app.super[0] = std::min(kMaximumSuper, g_app.super[0] + 7);
+
+        const float base = static_cast<float>(g_app.ballBaseSpeed);
+        if (g_app.ballVelocityX < 0.0f) {
+            if (g_app.player1Y + 20.0f > g_app.ballY + ballHeight) {
+                g_app.ballVelocityX = base - 1.0f;
+                g_app.ballVelocityY = -(base + 1.0f);
+            } else if (g_app.player1Y + kFighterCollisionHeight - 20.0f <
+                       g_app.ballY) {
+                g_app.ballVelocityX = base - 1.0f;
+                g_app.ballVelocityY = base + 1.0f;
+            } else {
+                g_app.ballVelocityX = base;
+                g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? base : -base;
+            }
+        } else {
+            g_app.ballVelocityX = base + 1.0f;
+            const float reduced = base - 1.0f;
+            g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? -reduced : reduced;
+        }
     }
-    if (g_app.ballVelocityX > 0 && g_app.ballX + ballWidth >= rightEdge &&
-        g_app.ballX <= g_app.player2X + right.width &&
+
+    const bool touchesPlayer2 = g_app.ballX + ballWidth > rightEdge &&
+        g_app.ballX <= g_app.player2X + kFighterCollisionWidth &&
         g_app.ballY + ballHeight >= g_app.player2Y &&
-        g_app.ballY <= g_app.player2Y + std::max(54, right.height)) {
-        g_app.ballX = rightEdge - ballWidth;
-        g_app.ballVelocityX = std::max(-6.4f, -g_app.ballVelocityX * 1.035f);
-        g_app.ballVelocityY += (g_app.ballY - g_app.player2Y - 22.0f) * 0.025f;
+        g_app.ballY < g_app.player2Y + kFighterCollisionHeight;
+    if (touchesPlayer2 && g_app.ballCollisionArmed[1]) {
+        g_app.ballCollisionArmed[1] = false;
+        g_app.ballCollisionArmed[0] = true;
         playEffect(g_app.ballHitSound, 0.75f);
-        damagePlayer(1, 3);
-        g_app.super[1] = std::min(kMaximumSuper, g_app.super[1] + 7);
-    }
-    if (g_app.ballX < -ballWidth) {
-        damagePlayer(0, 20);
-        resetBall(1);
-    } else if (g_app.ballX > 544.0f) {
-        damagePlayer(1, 20);
-        resetBall(-1);
+
+        const float base = static_cast<float>(g_app.ballBaseSpeed);
+        if (g_app.ballVelocityX > 0.0f) {
+            if (g_app.player2Y + 20.0f > g_app.ballY + ballHeight) {
+                g_app.ballVelocityX = -(base - 1.0f);
+                g_app.ballVelocityY = -(base + 1.0f);
+            } else if (g_app.player2Y + kFighterCollisionHeight - 20.0f <
+                       g_app.ballY) {
+                g_app.ballVelocityX = -(base - 1.0f);
+                g_app.ballVelocityY = base + 1.0f;
+            } else {
+                g_app.ballVelocityX = -base;
+                g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? base : -base;
+            }
+        } else {
+            g_app.ballVelocityX = -(base + 1.0f);
+            const float reduced = base - 1.0f;
+            g_app.ballVelocityY = g_app.ballVelocityY > 0.0f ? -reduced : reduced;
+        }
     }
     invalidate();
 }

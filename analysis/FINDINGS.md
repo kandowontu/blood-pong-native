@@ -117,6 +117,14 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   `344..544`, the shared y bounds `0..432`, and initial x positions 50/482. The
   native match now preserves these four-direction constraints for keyboard and
   both XInput axes.
+- `BALL_PHYSICS.md` records the constructor and default collision callback at
+  `0x0041294C` and `0x00412DC4`. The native match now starts the 16x16 ball at
+  `(264,208)` with independently signed five-pixel velocity, uses the original
+  544x432 bounds and 30-point outer-wall damage, keeps the ball live after wall
+  damage, and applies the exact 12x54 paddle gates and outgoing-angle branches.
+  It no longer invents contact damage, Super gain, serve resets, or acceleration
+  on every return. The ten temporary ball statuses and second/decoy-ball kode
+  modes remain explicit audit items.
 - `0x00413CF8` loads the type-2023 ROUND, digits 1–3, and FIGHT banks.
   `0x004141EC` advances them on a five-update cadence, swaps banks at stages 19
   and 37, holds the middle FIGHT frame during stages 43–49, and releases play at

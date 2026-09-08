@@ -35,9 +35,12 @@ FINISH HIM/HER sequence and guarded fatality path are also active. One-player
 mode uses the four recovered nine-battle ladders, the original KONTINUE panel
 and countdown, and the original GAME OVER cues. Presentation uses a persistent scaled
 backbuffer with a single final window copy, eliminating the live black clear
-that caused flicker. The gameplay/class-method audit is still being used to
-replace the remaining specialized secondary status-effect behavior before a
-preservation release is declared 1:1 complete.
+that caused flicker. Default ball play now uses the recovered 16x16 center,
+five-pixel velocity, 544x432 bounds, 30-point wall damage, collision gates, and
+original return-angle branches without invented serve resets or contact damage.
+The gameplay/class-method audit is still being used to replace the remaining
+versus-kode, second-ball, and specialized secondary status-effect behavior
+before a preservation release is declared 1:1 complete.
 
 ## Reproducible Windows build
 
