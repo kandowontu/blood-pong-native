@@ -158,6 +158,7 @@ struct Projectile {
     int originalType{};
     int variant{};
     int mode{};
+    int componentIndex{};
 };
 
 struct BallEffectState {
@@ -345,6 +346,12 @@ struct App {
     std::array<int, 2> comboTimeout{};
     std::array<int, 2> frozenTicks{};
     std::array<Projectile, 8> projectiles{};
+    std::uint32_t randomState{1};
+    std::uint32_t cpuAttackAccumulator{};
+    std::uint32_t cpuSuperAccumulator{};
+    std::uint32_t cpuHorizontalAccumulator{};
+    int cpuHorizontalTicks{};
+    int cpuHorizontalDirection{};
     std::uint64_t frameCounter{};
     bool fullscreen{};
     DWORD savedStyle{};
@@ -353,6 +360,13 @@ struct App {
 };
 
 App g_app;
+
+// Borland's 32-bit runtime rand() uses the 0x015A4E35 linear-congruential
+// multiplier. Only the low bits are consumed by the original CPU callbacks.
+std::uint32_t legacyRandom() {
+    g_app.randomState = g_app.randomState * 0x015A4E35u + 1u;
+    return (g_app.randomState >> 16) & 0x7fffu;
+}
 
 constexpr std::array<std::string_view, 16> kCharacterNames{
     "FUNG SHWEI", "LO THAN", "JEWEL", "RAPTOR", "SO FRIO", "NAI PALM",
@@ -1446,6 +1460,11 @@ void beginRound() {
     g_app.comboTimeout = {};
     g_app.frozenTicks = {};
     g_app.projectiles = {};
+    g_app.cpuAttackAccumulator = 0;
+    g_app.cpuSuperAccumulator = 0;
+    g_app.cpuHorizontalAccumulator = 0;
+    g_app.cpuHorizontalTicks = 0;
+    g_app.cpuHorizontalDirection = 0;
     g_app.paddleAppearance = g_app.selectedCharacters;
     g_app.randomPaddleTicks = {};
     g_app.roundIntroStage = 0;
@@ -1705,8 +1724,21 @@ void damagePlayer(int player, int amount, bool fromBall = false) {
     }
 }
 
-void launchComponent(int player, int componentIndex) {
-    if (g_app.attackCooldown[player] > 0) return;
+bool componentIsActive(int player, int componentIndex) {
+    return std::any_of(g_app.projectiles.begin(), g_app.projectiles.end(),
+        [&](const Projectile& projectile) {
+            return projectile.active && projectile.owner == player &&
+                   projectile.componentIndex == componentIndex;
+        });
+}
+
+bool cpuPairIdle(int first, int second) {
+    return !componentIsActive(1, first) && !componentIsActive(1, second);
+}
+
+void launchComponent(int player, int componentIndex, bool concurrent = false,
+                     int modeOverride = -1) {
+    if (!concurrent && g_app.attackCooldown[player] > 0) return;
     const int character = g_app.selectedCharacters[static_cast<std::size_t>(player)];
     if (componentIndex < 1 || componentIndex > 4) return;
     const auto& component = kComponents[static_cast<std::size_t>(character)]
@@ -1725,6 +1757,7 @@ void launchComponent(int player, int componentIndex) {
         g_app.attackCooldown[player] = 28;
         return;
     }
+    if (componentIsActive(player, componentIndex)) return;
     for (auto& projectile : g_app.projectiles) {
         if (projectile.active) continue;
         projectile.active = true;
@@ -1739,7 +1772,8 @@ void launchComponent(int player, int componentIndex) {
         }
         projectile.originalType = component.originalType;
         projectile.variant = component.variant;
-        projectile.mode = component.delay;
+        projectile.mode = modeOverride >= 0 ? modeOverride : component.delay;
+        projectile.componentIndex = componentIndex;
         projectile.age = 0;
         projectile.lifetime = 0;
         const auto& sprite = activeProjectileSprite(projectile);
@@ -1749,10 +1783,10 @@ void launchComponent(int player, int componentIndex) {
         projectile.x = player == 0 ? paddleRight : paddleLeft - sprite.width;
         projectile.y = (player == 0 ? g_app.player1Y : g_app.player2Y) +
                        (paddle.height - sprite.height) * 0.5f;
-        const float speed = component.delay == 11 ? 5.0f : 9.0f;
+        const float speed = projectile.mode == 11 ? 5.0f : 9.0f;
         projectile.velocityX = player == 0 ? speed : -speed;
-        projectile.velocityY = component.delay == 17 ? -3.0f
-            : (component.delay == 18 ? 3.0f : 0.0f);
+        projectile.velocityY = projectile.mode == 17 ? -3.0f
+            : (projectile.mode == 18 ? 3.0f : 0.0f);
         if (component.originalType == 1) {
             // 0x0041C808 anchors the 516-pixel beam behind the owner and sweeps
             // it toward the opponent at 14 pixels per update.
@@ -1779,10 +1813,10 @@ void launchComponent(int player, int componentIndex) {
         } else if (component.originalType == 9) {
             // Nai Palm's four modes are the original extra-ball diagonals from
             // 0x0041D328. Modes 6/8 use 6x6 velocity; 7/9 use 7x5.
-            const bool steep = component.delay == 6 || component.delay == 8;
+            const bool steep = projectile.mode == 6 || projectile.mode == 8;
             projectile.velocityX = player == 0 ? (steep ? 6.0f : 7.0f)
                                                 : (steep ? -6.0f : -7.0f);
-            projectile.velocityY = (component.delay == 6 || component.delay == 7)
+            projectile.velocityY = (projectile.mode == 6 || projectile.mode == 7)
                 ? -static_cast<float>(steep ? 6 : 5)
                 : static_cast<float>(steep ? 6 : 5);
         } else if (component.originalType == 11) {
@@ -1803,7 +1837,7 @@ void launchComponent(int player, int componentIndex) {
         } else if (component.originalType == 17) {
             // Omoh's lob starts at -8 vertical velocity. Mode 22 is seven
             // pixels/tick horizontally; its other mode is five (0x0041D1DC).
-            const float speed = component.delay == 22 ? 7.0f : 5.0f;
+            const float speed = projectile.mode == 22 ? 7.0f : 5.0f;
             projectile.x = player == 0 ? paddleLeft : paddleRight - sprite.width;
             projectile.velocityX = player == 0 ? speed : -speed;
             projectile.velocityY = -8.0f;
@@ -1826,7 +1860,7 @@ void launchComponent(int player, int componentIndex) {
             const float targetMinimum = target == 0 ? 0.0f : 344.0f;
             const float targetMaximum = target == 0 ? 200.0f : 544.0f;
             const float horizontalSeed = static_cast<float>(GetTickCount() & 63);
-            projectile.x = component.delay == 25
+            projectile.x = projectile.mode == 25
                 ? targetMinimum + horizontalSeed
                 : targetMaximum - horizontalSeed - sprite.width;
             projectile.y = 452.0f + static_cast<float>(GetTickCount() & 63) -
@@ -1838,7 +1872,7 @@ void launchComponent(int player, int componentIndex) {
         g_app.attackCooldown[player] = 28;
         g_app.animationTicks[player] = 48;
         g_app.animationFrame[player] = 12;
-        if (component.originalType == 4 && component.delay == 11) {
+        if (component.originalType == 4 && projectile.mode == 11) {
             playEffect(g_app.projectileAlternateSound);
         } else if (component.originalType > 0 && component.originalType <
                    static_cast<int>(g_app.projectileSounds.size())) {
@@ -1846,6 +1880,277 @@ void launchComponent(int player, int componentIndex) {
                 component.originalType)]);
         }
         return;
+    }
+}
+
+int cpuDifficultyTier() {
+    // 0x0040D0F6 selects one of four movement callbacks at ladder thresholds
+    // 2, 4, and 6. Secret-realm opponents use the fourth callback.
+    const int difficulty = g_app.realmMatchActive ? 8 : g_app.ladderIndex;
+    if (difficulty < 2) return 0;
+    if (difficulty < 4) return 1;
+    if (difficulty < 6) return 2;
+    return 3;
+}
+
+void updateCpuSuperDecision() {
+    if (g_app.playerCount != 1 || g_app.superActive[1] ||
+        g_app.super[1] < kMaximumSuper) return;
+
+    const int tier = cpuDifficultyTier();
+    if (tier == 0) {
+        // 0x00410B0F: rand() & 255 accumulates past 0x7530.
+        g_app.cpuSuperAccumulator += legacyRandom() & 0xffu;
+        if (g_app.cpuSuperAccumulator <= 0x7530u) return;
+    } else if (tier == 1) {
+        // 0x00410DDF: the second tier uses rand() & 15 and threshold 1000.
+        g_app.cpuSuperAccumulator += legacyRandom() & 0x0fu;
+        if (g_app.cpuSuperAccumulator <= 0x03e8u) return;
+    }
+    g_app.cpuSuperAccumulator = 0;
+    g_app.superActive[1] = true;
+    g_app.superDrainTicks[1] = 0;
+}
+
+void launchCpuAttack() {
+    const int character = std::clamp(g_app.selectedCharacters[1], 0, 15);
+    const float verticalDelta = g_app.player2Y - g_app.player1Y;
+    const float absoluteVerticalDelta = std::abs(verticalDelta);
+    const bool ballApproaching = g_app.ballVelocityX > 0.0f;
+    const bool targetReacting = g_app.animationTicks[0] > 0 ||
+                                g_app.frozenTicks[0] > 0;
+    const std::uint32_t random = legacyRandom();
+
+    // These branches are direct translations of the sixteen constructor
+    // callbacks at 0x0041182C..0x004128C9. Component numbers refer to the
+    // literal projectile objects recorded in kComponents. Fighter-state tests
+    // that guarded reactions in the original are represented by targetReacting.
+    switch (character) {
+        case 0:  // Fung Shwei
+            if (targetReacting || (absoluteVerticalDelta > 50.0f && !ballApproaching)) return;
+            if ((random & 7u) < 2u) launchComponent(1, g_app.player1X < 30.0f ? 4 : 1);
+            return;
+        case 1:  // Lo Than
+            if (absoluteVerticalDelta > 100.0f && !ballApproaching) return;
+            switch (random & 3u) {
+                case 0: launchComponent(1, 1); break;
+                case 1: launchComponent(1, 2); break;
+                case 2: launchComponent(1, 3); break;
+                default: break;
+            }
+            return;
+        case 2:  // Jewel
+            if (g_app.player1Y < g_app.player2Y - 25.0f) launchComponent(1, 3);
+            else if (g_app.player1Y > g_app.player2Y + 25.0f) launchComponent(1, 4);
+            else launchComponent(1, (random & 1u) == 0 ? 1 : 2);
+            return;
+        case 3:  // Raptor
+            if (targetReacting || (absoluteVerticalDelta > 100.0f && !ballApproaching)) return;
+            if (ballApproaching) {
+                launchComponent(1, (random & 1u) == 0 ? 3 : 2);
+                return;
+            }
+            switch (random & 7u) {
+                case 0: if (absoluteVerticalDelta < 100.0f) launchComponent(1, 1); break;
+                case 1: launchComponent(1, 2); break;
+                case 2: launchComponent(1, 3); break;
+                case 3: launchComponent(1, 4); break;
+                default: break;
+            }
+            return;
+        case 4:  // So Frio
+            switch (random & 3u) {
+                case 0: if (verticalDelta < 100.0f) launchComponent(1, 1); break;
+                case 1: launchComponent(1, 3); break;
+                default: launchComponent(1, 2); break;
+            }
+            return;
+        case 5:  // Nai Palm: the stock callback launches diagonal pairs.
+            switch (random & 3u) {
+                case 0:
+                    if (!cpuPairIdle(1, 2)) return;
+                    launchComponent(1, 1);
+                    launchComponent(1, 2, true);
+                    break;
+                case 1:
+                    if (!cpuPairIdle(3, 4)) return;
+                    launchComponent(1, 3);
+                    launchComponent(1, 4, true);
+                    break;
+                case 2:
+                    if (!cpuPairIdle(1, 3)) return;
+                    launchComponent(1, 1);
+                    launchComponent(1, 3, true);
+                    break;
+                default:
+                    if (!cpuPairIdle(2, 4)) return;
+                    launchComponent(1, 2);
+                    launchComponent(1, 4, true);
+                    break;
+            }
+            return;
+        case 6:  // One Eye
+            if (targetReacting || (absoluteVerticalDelta > 100.0f && !ballApproaching)) return;
+            launchComponent(1, (random & 1u) == 0 ? 1 : 2);
+            return;
+        case 7:  // Raider
+            if (targetReacting || (absoluteVerticalDelta > 100.0f && !ballApproaching)) return;
+            if (ballApproaching) {
+                if ((random & 1u) == 0) launchComponent(1, 2);
+                return;
+            }
+            if ((random & 3u) == 0) launchComponent(1, 1);
+            else if ((random & 3u) == 1) launchComponent(1, 2);
+            return;
+        case 8:  // Show Lin
+            if (verticalDelta >= 100.0f && !ballApproaching) {
+                launchComponent(1, 4);
+                return;
+            }
+            switch (random & 3u) {
+                case 0: launchComponent(1, 1); break;
+                case 1: launchComponent(1, 1, false, 19); break;
+                case 2: launchComponent(1, 1, false, 20); break;
+                default: launchComponent(1, 4); break;
+            }
+            return;
+        case 9:  // Dawg Cau
+            if ((random & 1u) == 0) {
+                if (!cpuPairIdle(1, 2)) return;
+                launchComponent(1, 1);
+                launchComponent(1, 2, true);
+            } else {
+                launchComponent(1, 3);
+            }
+            return;
+        case 10:  // Omoh
+            switch (random & 3u) {
+                case 0: launchComponent(1, 2); break;
+                case 1: launchComponent(1, 3); break;
+                default: launchComponent(1, 1); break;
+            }
+            return;
+        case 11:  // Carmack
+            if (targetReacting) return;
+            if (g_app.player1Y < g_app.player2Y - 25.0f) launchComponent(1, 2);
+            else if (g_app.player1Y > g_app.player2Y + 25.0f) launchComponent(1, 3);
+            else if (g_app.player1X < 30.0f) launchComponent(1, 4);
+            else launchComponent(1, 1);
+            return;
+        case 12:  // Pain
+            if (targetReacting || verticalDelta > 100.0f) return;
+            launchComponent(1, (random & 1u) == 0 ? 1 : 2);
+            return;
+        case 13:  // Lo Pan
+            if ((random & 1u) == 0) {
+                const int mode = g_app.player1Y < g_app.player2Y - 25.0f ? 12
+                    : (g_app.player1Y > g_app.player2Y + 25.0f ? 13 : 0);
+                launchComponent(1, 1, false, mode);
+            } else {
+                launchComponent(1, 2);
+            }
+            return;
+        case 14: {  // Mai Lai
+            if (g_app.player1X < 30.0f) {
+                launchComponent(1, 3);
+                return;
+            }
+            launchComponent(1, componentIsActive(1, 1) ? 2 : 1);
+            return;
+        }
+        case 15: {  // Baka: both halves are armed together.
+            if (!cpuPairIdle(1, 2)) return;
+            int firstMode = 0;
+            int secondMode = 0;
+            if (g_app.player1Y < g_app.player2Y - 25.0f) firstMode = 12;
+            else if (g_app.player1Y > g_app.player2Y + 25.0f) secondMode = 13;
+            else if ((random & 1u) != 0) {
+                firstMode = 12;
+                secondMode = 13;
+            }
+            launchComponent(1, 1, false, firstMode);
+            launchComponent(1, 2, true, secondMode);
+            return;
+        }
+    }
+}
+
+void updateCpuAttackDecision() {
+    if (g_app.playerCount != 1 || g_app.attackCooldown[1] > 0) return;
+    const int tier = cpuDifficultyTier();
+    if (tier == 0) {
+        // 0x00410B3A: rand() & 255 accumulates past 0x61A8.
+        g_app.cpuAttackAccumulator += legacyRandom() & 0xffu;
+        if (g_app.cpuAttackAccumulator <= 0x61a8u) return;
+        g_app.cpuAttackAccumulator = 0;
+    } else if (tier == 1) {
+        // 0x00410E08 arms attacks at 1000 only while the ball is beyond the
+        // CPU's near movement bound, retaining the accumulator until then.
+        g_app.cpuAttackAccumulator += legacyRandom() & 0x0fu;
+        const int ballWidth = activeBallSprite() ? activeBallSprite().width : 16;
+        if (g_app.cpuAttackAccumulator <= 0x03e8u ||
+            g_app.ballX + ballWidth >= 344.0f) return;
+        g_app.cpuAttackAccumulator = 0;
+    }
+    launchCpuAttack();
+}
+
+void updateCpuMovement() {
+    const int tier = cpuDifficultyTier();
+    const auto& ball = activeBallSprite();
+    const float ballHeight = static_cast<float>(ball ? ball.height : 16);
+    const float targetY = g_app.currentKode == VersusKode::ballDisabled
+        ? g_app.player1Y
+        : g_app.ballY + ballHeight * 0.5f - kFighterCollisionHeight * 0.5f;
+    const float differenceY = targetY - g_app.player2Y;
+    const float deadZone = tier == 0 ? 25.0f : (tier == 1 ? 18.0f : 6.0f);
+    float verticalSpeed = 8.0f;
+
+    if (tier < 2 && std::abs(differenceY) < 20.0f) {
+        // The first two callbacks use abs(ball.vy) when the ball overlaps the
+        // fighter's 20-pixel inner band, otherwise the fighter's eight-pixel
+        // base movement field.
+        verticalSpeed = std::max(1.0f, std::abs(g_app.ballVelocityY));
+    } else if (tier >= 2 && std::abs(differenceY) > 20.0f &&
+               g_app.turbo[1] >= 2 &&
+               g_app.currentKode != VersusKode::runDisabled) {
+        verticalSpeed = 13.0f;
+        g_app.turbo[1] -= 2;
+    } else {
+        g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
+    }
+
+    if (std::abs(differenceY) > deadZone) {
+        g_app.player2Y += std::clamp(differenceY, -verticalSpeed, verticalSpeed);
+    }
+
+    if (tier < 2) {
+        const std::uint32_t mask = tier == 0 ? 0xffu : 0x0fu;
+        const std::uint32_t threshold = tier == 0 ? 0x05dcu : 0x01f4u;
+        g_app.cpuHorizontalAccumulator += legacyRandom() & mask;
+        if (g_app.cpuHorizontalAccumulator > threshold) {
+            g_app.cpuHorizontalAccumulator = 0;
+            g_app.cpuHorizontalTicks = static_cast<int>(legacyRandom() & 0x0fu);
+            g_app.cpuHorizontalDirection = (legacyRandom() & 1u) == 0 ? -1 : 1;
+        }
+        if (g_app.cpuHorizontalTicks > 0) {
+            g_app.player2X += 8.0f * g_app.cpuHorizontalDirection;
+            --g_app.cpuHorizontalTicks;
+        } else {
+            const float home = tier == 0 ? 482.0f :
+                (g_app.ballVelocityX > 0.0f
+                    ? std::clamp(g_app.ballX + 80.0f, 344.0f, 482.0f)
+                    : 482.0f);
+            g_app.player2X += std::clamp(home - g_app.player2X, -8.0f, 8.0f);
+        }
+    } else {
+        // The upper callbacks advance or retreat in both axes and use the
+        // ball rectangle directly. Tier four predicts farther into the
+        // approaching path than tier three.
+        const float lead = g_app.ballVelocityX > 0.0f ? (tier == 3 ? 28.0f : 44.0f)
+                                                      : 100.0f;
+        const float targetX = std::clamp(g_app.ballX + lead, 344.0f, 532.0f);
+        g_app.player2X += std::clamp(targetX - g_app.player2X, -8.0f, 8.0f);
     }
 }
 
@@ -2433,16 +2738,10 @@ void updateMatch() {
         return;
     }
 
+    updateCpuSuperDecision();
     for (int player = 0; player < 2; ++player) {
         if (g_app.cheats[2]) {
             g_app.super[static_cast<std::size_t>(player)] = kMaximumSuper;
-        }
-        if (player == 1 && g_app.playerCount == 1 &&
-            g_app.super[1] >= kMaximumSuper && !g_app.superActive[1]) {
-            // The stock CPU callbacks arm +0x754 as soon as their Super gauge
-            // reaches the same 0x9A threshold used by human input.
-            g_app.superActive[1] = true;
-            g_app.superDrainTicks[1] = 0;
         }
         if (!g_app.superActive[static_cast<std::size_t>(player)]) {
             g_app.superDrainTicks[static_cast<std::size_t>(player)] = 0;
@@ -2529,18 +2828,11 @@ void updateMatch() {
             g_app.player2Y += player2MoveY * player2VerticalSpeed;
         }
     } else {
-        // CPU paddles use the same eight-pixel step and half-court bounds. The
-        // original character callbacks choose attacks independently; position
-        // prediction here follows the live ball in both axes.
-        const float targetX = std::clamp(g_app.ballX - 6.0f, 344.0f, 532.0f);
-        const float targetY = g_app.ballY - 22.0f;
         if (g_app.frozenTicks[1] == 0) {
-            g_app.player2X += std::clamp(targetX - g_app.player2X,
-                                         -paddleSpeed, paddleSpeed);
-            g_app.player2Y += std::clamp(targetY - g_app.player2Y,
-                                         -paddleSpeed, paddleSpeed);
+            updateCpuMovement();
+        } else {
+            g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
         }
-        g_app.turbo[1] = std::min(kMaximumTurbo, g_app.turbo[1] + 1);
     }
     g_app.player1X = std::clamp(g_app.player1X, 0.0f, 188.0f);
     g_app.player2X = std::clamp(g_app.player2X, 344.0f, 532.0f);
@@ -2578,17 +2870,7 @@ void updateMatch() {
             processCombatButton(1, button);
         }
     }
-    if (g_app.playerCount == 1 && g_app.attackCooldown[1] == 0 &&
-        (g_app.frameCounter % 180) == 0) {
-        const int character = g_app.selectedCharacters[1];
-        const auto& recipes = kComboRecipes[static_cast<std::size_t>(character)];
-        for (const auto& recipe : recipes) {
-            if (recipe.component > 0) {
-                launchComponent(1, recipe.component);
-                break;
-            }
-        }
-    }
+    updateCpuAttackDecision();
     updateProjectiles();
     if (g_app.matchPhase != MatchPhase::playing) {
         invalidate();
@@ -2965,6 +3247,7 @@ void destroyResources() {
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
     SetProcessDPIAware();
+    g_app.randomState = GetTickCount() | 1u;
     constexpr wchar_t kClassName[] = L"BloodPongNativeWindow";
     WNDCLASSEXW windowClass{sizeof(windowClass)};
     windowClass.style = CS_OWNDC;

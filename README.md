@@ -42,11 +42,13 @@ All 29 versus messages and their recovered gameplay modifiers are active,
 including the normal secondary ball and wall-only decoy. The full-Super flag,
 five-update gauge drain, sixteen-entry fighter-to-effect map, and all ten
 temporary ball-status branches are also reconstructed. The gameplay/class-
-method audit remains the authority for closing the remaining fighter AI,
-shared-projectile impact-state, and end-state fidelity work before a
+method audit remains the authority for closing the remaining upper-tier CPU
+interception nuances, shared-projectile impact-state, and end-state fidelity work before a
 preservation release is declared 1:1 complete. Fighter-specific projectile and
 outer-wall reaction pairs, plus all specialized projectile callbacks, now use
-the recovered constructor and state-machine behavior.
+the recovered constructor and state-machine behavior. One-player CPU play uses
+the original four ladder thresholds and all sixteen character attack selectors,
+including simultaneous pairs and position-dependent projectile modes.
 
 ## Reproducible Windows build
 

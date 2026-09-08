@@ -2,9 +2,12 @@
 
 Recovered from the original 17-way constructor jump table at `0x0040D6F6`. Projectile type/damage arguments are literal parameters passed to `0x0041AC54`; blank entries are dynamically configured or use a different initializer.
 
-The three callback columns are the exact code pointers assigned to fighter fields `+0x6C`, `+0x78`, and `+0x84`; neutral field names avoid assigning semantics that are still under translation.
+The three callback columns are the exact code pointers assigned to fighter fields
+`+0x6C`, `+0x78`, and `+0x84`. Cross-references from the four one-player
+movement callbacks and the human-input dispatcher establish their roles as the
+CPU attack selector, direct attack-key handler, and combo recognizer.
 
-| # | Fighter | Resource type | Constructor | Paddle pointer | Callback +6C | Callback +78 | Callback +84 | Projectile type:damage |
+| # | Fighter | Resource type | Constructor | Paddle pointer | CPU attack +6C | Attack keys +78 | Combo +84 | Projectile type:damage |
 |---:|---|---:|---:|---:|---:|---:|---:|---|
 | 1 | Fung Shwei | 2017 | `0x0040D73A` | `0x0043565C` | `0x0041182C` | `0x00406524` | `0x004082A4` | 1:10, 0:0, 0:0, 0:0 |
 | 2 | Lo Than | 2006 | `0x0040D850` | `0x00435674` | `0x004118BC` | `0x00406608` | `0x00408538` | 2:30, 2:30, 2:30 |
