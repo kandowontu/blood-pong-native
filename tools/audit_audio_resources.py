@@ -86,7 +86,7 @@ def main() -> None:
         "announcer": {
             "round": 1000, "round1": 1001, "round2": 1002, "round3": 1003,
             "fight": 1004, "finishHim": 1005, "finishHer": 1006,
-            "fatality": 250,
+            "fatality": 250, "realmTransport": 5001,
         },
         "ui": {"move": 3001, "select": 3002},
         "physics": {"paddleHit": 501, "arenaBounce": 500},

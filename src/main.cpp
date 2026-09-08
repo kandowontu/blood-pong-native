@@ -27,7 +27,10 @@ constexpr int kMaximumTurbo = 0x3A;
 constexpr int kMaximumSuper = 0x9A;
 constexpr COLORREF kTransparent = RGB(0, 0, 0);
 
-enum class Screen { title, credits, characterSelect, versusKode, match, cheatMenu, configuration };
+enum class Screen {
+    title, credits, characterSelect, versusKode, match, cheatMenu, configuration,
+    continuePrompt, gameOver
+};
 enum class MatchPhase { playing, betweenRounds, finishPrompt, matchResult };
 enum class CombatButton : std::uint8_t { attack1, attack2, attack3, turbo, super };
 
@@ -98,6 +101,7 @@ struct ComboRecipe {
     std::array<CombatButton, 5> buttons{};
     int length{};
     int component{};
+    bool realmTransport{};
 };
 
 using XInputGetStateFunction = DWORD(WINAPI*)(DWORD, XINPUT_STATE*);
@@ -120,6 +124,9 @@ struct App {
     std::array<BitmapAsset, 4> normalItems{};
     BitmapAsset selectBackdrop{};
     BitmapAsset versusBackdrop{};
+    BitmapAsset mysteryPortrait{};
+    BitmapAsset continuePanel{};
+    std::array<BitmapAsset, 10> continueDigits{};
     std::array<BitmapAsset, 3> matchBackdrops{};
     int matchStage{};
     BitmapAsset configBanner{};
@@ -141,6 +148,8 @@ struct App {
     SpriteAsset fatalitySprite{};
     SoundAsset titleMusic{};
     SoundAsset matchMusic{};
+    SoundAsset ladderSound{};
+    std::array<SoundAsset, 2> gameOverSounds{};
     std::array<SoundAsset, 16> fighterVoices{};
     SoundAsset menuMoveSound{};
     SoundAsset menuSelectSound{};
@@ -150,6 +159,7 @@ struct App {
     SoundAsset finishHimSound{};
     SoundAsset finishHerSound{};
     SoundAsset fatalitySound{};
+    SoundAsset realmTransportSound{};
     SoundAsset projectileAlternateSound{};
     SoundAsset projectileSecondarySound{};
     SoundAsset ballBounceSound{};
@@ -173,6 +183,11 @@ struct App {
     int playerCount{1};
     int selectingPlayer{};
     std::array<int, 2> selectedCharacters{0, 1};
+    std::array<int, 9> activeLadder{};
+    int ladderIndex{};
+    int continues{5};
+    int continueCountdown{9};
+    int continueCountdownTicks{};
     std::array<int, 6> kodeDigits{};
     bool allContentUnlocked{};
     bool soundEnabled{true};
@@ -206,6 +221,9 @@ struct App {
     int matchPhaseTicks{};
     int roundWinner{-1};
     bool fatalityPerformed{};
+    bool realmTransportPending{};
+    bool realmMatchActive{};
+    int realmReturnWinner{-1};
     std::array<int, 2> health{kMaximumHealth, kMaximumHealth};
     std::array<int, 2> super{};
     std::array<int, 2> animationFrame{};
@@ -246,6 +264,15 @@ constexpr std::array<int, 25> kProjectileSoundIds{
     0, 3000, 3003, 3005, 3008, 3007, 3010, 3010, 3012, 3032,
     3013, 2050, 3014, 3019, 3020, 3013, 3012, 3021, 3031, 3030,
     3029, 3023, 3025, 3025, 3020};
+
+// Four equally likely nine-match ladders written by 0x004027A8. The original
+// stores one-based fighter numbers; this native table is zero-based.
+constexpr std::array<std::array<int, 9>, 4> kTournamentLadders{{
+    {{12, 1, 11, 2, 9, 7, 13, 3, 5}},
+    {{4, 15, 14, 8, 9, 0, 11, 3, 5}},
+    {{1, 0, 14, 13, 9, 2, 3, 7, 5}},
+    {{0, 12, 15, 4, 9, 3, 13, 11, 5}},
+}};
 
 // The original finish-prompt initializer at 0x004143D9 selects FINISH HER for
 // fighter numbers 3, 10, and 16, and FINISH HIM for every other fighter.
@@ -294,35 +321,35 @@ constexpr CombatButton TU = CombatButton::turbo;
 constexpr CombatButton SU = CombatButton::super;
 constexpr ComboRecipe move(CombatButton a, CombatButton b, CombatButton c,
                            CombatButton d, CombatButton e, int component) {
-    return {{{a, b, c, d, e}}, 5, component};
+    return {{{a, b, c, d, e}}, 5, component, false};
 }
-constexpr ComboRecipe fatality() {
-    return {{{SU, SU, TU, TU, TU}}, 4, -1};
+constexpr ComboRecipe realmTransport() {
+    return {{{SU, SU, TU, TU, TU}}, 4, 0, true};
 }
 constexpr ComboRecipe noCombo() {
-    return {{{A1, A1, A1, A1, A1}}, 0, 0};
+    return {{{A1, A1, A1, A1, A1}}, 0, 0, false};
 }
 
 // Shortest accepting paths recovered by emulating each original recognizer with
 // a synthetic fighter object. Every transition retains the original 60-update
 // input window; component numbers are exactly those passed to 0x004081E8.
 constexpr std::array<std::array<ComboRecipe, 4>, 16> kComboRecipes{{
-    {{fatality(), move(A1,A1,A2,A2,TU,1), move(A1,A1,A3,A1,SU,3), move(A2,A3,A2,A1,TU,2)}},
-    {{fatality(), move(A1,A1,A1,A3,TU,3), move(A2,A1,A2,A2,SU,1), move(A3,A1,A1,A3,TU,2)}},
-    {{fatality(), move(A1,A2,A2,A3,SU,2), move(A2,A1,A2,A1,SU,1), move(A3,A2,A1,A1,SU,3)}},
-    {{fatality(), move(A1,A1,A1,A2,SU,2), move(A1,A1,A3,A2,TU,3), move(A3,A3,A2,A2,TU,1)}},
-    {{fatality(), move(A1,A2,A1,A1,SU,1), move(A2,A1,A3,A3,SU,2), move(A3,A3,A1,A1,SU,3)}},
-    {{fatality(), move(A1,A1,A3,A3,TU,3), move(A2,A2,A2,A2,TU,2), move(A3,A1,A3,A1,SU,1)}},
-    {{fatality(), move(A1,A1,A2,A3,TU,3), move(A3,A1,A2,A1,TU,1), move(A3,A3,A2,A2,TU,2)}},
-    {{fatality(), move(A1,A1,A3,A1,TU,2), move(A2,A2,A2,A3,TU,1), move(A3,A3,A2,A1,SU,3)}},
-    {{fatality(), move(A1,A1,A1,A3,SU,3), move(A1,A2,A2,A1,SU,1), move(A3,A3,A2,A3,SU,2)}},
-    {{fatality(), move(A2,A2,A3,A1,SU,2), move(A2,A2,A3,A3,SU,3), move(A3,A2,A1,A1,TU,1)}},
-    {{fatality(), move(A1,A2,A1,A2,SU,1), move(A3,A2,A3,A2,SU,2), noCombo()}},
-    {{fatality(), move(A2,A2,A1,A3,TU,1), move(A3,A2,A3,A1,SU,2), noCombo()}},
-    {{fatality(), move(A1,A2,A3,A2,TU,1), move(A2,A2,A1,A1,TU,2), noCombo()}},
-    {{fatality(), move(A1,A2,A2,A3,SU,1), move(A3,A3,A2,A2,TU,2), noCombo()}},
-    {{fatality(), move(A1,A1,A1,A1,SU,2), move(A2,A1,A1,A2,TU,3), move(A3,A2,A2,A3,SU,1)}},
-    {{fatality(), move(A1,A2,A3,A3,SU,2), move(A3,A2,A2,A2,TU,1), noCombo()}},
+    {{realmTransport(), move(A1,A1,A2,A2,TU,1), move(A1,A1,A3,A1,SU,3), move(A2,A3,A2,A1,TU,2)}},
+    {{realmTransport(), move(A1,A1,A1,A3,TU,3), move(A2,A1,A2,A2,SU,1), move(A3,A1,A1,A3,TU,2)}},
+    {{realmTransport(), move(A1,A2,A2,A3,SU,2), move(A2,A1,A2,A1,SU,1), move(A3,A2,A1,A1,SU,3)}},
+    {{realmTransport(), move(A1,A1,A1,A2,SU,2), move(A1,A1,A3,A2,TU,3), move(A3,A3,A2,A2,TU,1)}},
+    {{realmTransport(), move(A1,A2,A1,A1,SU,1), move(A2,A1,A3,A3,SU,2), move(A3,A3,A1,A1,SU,3)}},
+    {{realmTransport(), move(A1,A1,A3,A3,TU,3), move(A2,A2,A2,A2,TU,2), move(A3,A1,A3,A1,SU,1)}},
+    {{realmTransport(), move(A1,A1,A2,A3,TU,3), move(A3,A1,A2,A1,TU,1), move(A3,A3,A2,A2,TU,2)}},
+    {{realmTransport(), move(A1,A1,A3,A1,TU,2), move(A2,A2,A2,A3,TU,1), move(A3,A3,A2,A1,SU,3)}},
+    {{realmTransport(), move(A1,A1,A1,A3,SU,3), move(A1,A2,A2,A1,SU,1), move(A3,A3,A2,A3,SU,2)}},
+    {{realmTransport(), move(A2,A2,A3,A1,SU,2), move(A2,A2,A3,A3,SU,3), move(A3,A2,A1,A1,TU,1)}},
+    {{realmTransport(), move(A1,A2,A1,A2,SU,1), move(A3,A2,A3,A2,SU,2), noCombo()}},
+    {{realmTransport(), move(A2,A2,A1,A3,TU,1), move(A3,A2,A3,A1,SU,2), noCombo()}},
+    {{realmTransport(), move(A1,A2,A3,A2,TU,1), move(A2,A2,A1,A1,TU,2), noCombo()}},
+    {{realmTransport(), move(A1,A2,A2,A3,SU,1), move(A3,A3,A2,A2,TU,2), noCombo()}},
+    {{realmTransport(), move(A1,A1,A1,A1,SU,2), move(A2,A1,A1,A2,TU,3), move(A3,A2,A2,A3,SU,1)}},
+    {{realmTransport(), move(A1,A2,A3,A3,SU,2), move(A3,A2,A2,A2,TU,1), noCombo()}},
 }};
 
 BitmapAsset loadBitmap(HINSTANCE instance, int id) {
@@ -769,7 +796,43 @@ void renderCharacterSelect() {
                  RGB(210, 210, 215), FW_NORMAL);
 }
 
+void drawLadderPortrait(int ladderPosition, int x, int y, bool current) {
+    if (ladderPosition < 0 || ladderPosition >= static_cast<int>(g_app.activeLadder.size())) return;
+    const BitmapAsset& portrait = ladderPosition == 4
+        ? g_app.mysteryPortrait
+        : g_app.portraits[static_cast<std::size_t>(g_app.activeLadder[ladderPosition])];
+    drawBitmap(portrait, x, y);
+    drawOutline(x - 2, y - 2, x + portrait.width + 2, y + portrait.height + 2,
+                current ? RGB(230, 20, 25) : RGB(135, 135, 145), current ? 3 : 1);
+}
+
+void renderCpuLadder() {
+    drawBitmap(g_app.selectBackdrop, kArtX, kArtY);
+    const int player = g_app.selectedCharacters[0];
+    drawBitmap(g_app.portraits[static_cast<std::size_t>(player)], kArtX + 172, kArtY + 166);
+    drawOutline(kArtX + 170, kArtY + 164, kArtX + 254, kArtY + 268,
+                RGB(60, 205, 255), 3);
+    drawLadderPortrait(g_app.ladderIndex - 1, kArtX + 292, kArtY + 226, false);
+    drawLadderPortrait(g_app.ladderIndex, kArtX + 292, kArtY + 166, true);
+    drawLadderPortrait(g_app.ladderIndex + 1, kArtX + 292, kArtY + 106, false);
+
+    drawTextLine("BLOOD PONG TOURNAMENT", kArtY + 38, 21,
+                 RGB(225, 15, 25), FW_HEAVY, true);
+    std::string battle = "BATTLE " + std::to_string(g_app.ladderIndex + 1) + " OF 9";
+    drawTextLine(battle, kArtY + 355, 15, RGB(230, 230, 235));
+    drawSmallText(kCharacterNames[static_cast<std::size_t>(player)],
+                  kArtX + 172, kArtY + 278, RGB(80, 215, 255), 12);
+    const int opponent = g_app.activeLadder[static_cast<std::size_t>(g_app.ladderIndex)];
+    drawSmallText(g_app.ladderIndex == 4 ? "???" : kCharacterNames[opponent],
+                  kArtX + 292, kArtY + 278, RGB(255, 55, 60), 12);
+    drawTextLine("ENTER TO FIGHT", kArtY + 390, 12, RGB(205, 205, 210), FW_NORMAL);
+}
+
 void renderVersusKode() {
+    if (g_app.playerCount == 1) {
+        renderCpuLadder();
+        return;
+    }
     drawBitmap(g_app.versusBackdrop, kArtX, kArtY);
     drawBitmap(g_app.portraits[g_app.selectedCharacters[0]], kArtX + 100, kArtY + 127);
     drawBitmap(g_app.portraits[g_app.selectedCharacters[1]], kArtX + 360, kArtY + 127);
@@ -956,6 +1019,24 @@ void renderMatch() {
     }
 }
 
+void renderContinuePrompt() {
+    renderMatch();
+    drawBitmap(g_app.continuePanel, kArtX + 172, kArtY + 138);
+    const int credits = std::clamp(g_app.continues, 0, 9);
+    const int countdown = std::clamp(g_app.continueCountdown, 0, 9);
+    drawBitmap(g_app.continueDigits[static_cast<std::size_t>(credits)],
+               kArtX + 264, kArtY + 206);
+    drawBitmap(g_app.continueDigits[static_cast<std::size_t>(countdown)],
+               kArtX + 322, kArtY + 249);
+}
+
+void renderGameOver() {
+    drawBitmap(g_app.matchBackdrops[0], kArtX, kArtY);
+    drawTextLine("GAME OVER", kArtY + 190, 54, RGB(205, 0, 10), FW_HEAVY, true);
+    drawTextLine("ENTER TO RETURN", kArtY + 330, 13,
+                 RGB(220, 220, 225), FW_NORMAL);
+}
+
 void renderCheatMenu() {
     renderMatch();
     RECT panel{kArtX + 116, kArtY + 57, kArtX + 428, kArtY + 375};
@@ -1026,6 +1107,8 @@ void render() {
         case Screen::match: renderMatch(); break;
         case Screen::cheatMenu: renderCheatMenu(); break;
         case Screen::configuration: renderConfiguration(); break;
+        case Screen::continuePrompt: renderContinuePrompt(); break;
+        case Screen::gameOver: renderGameOver(); break;
     }
 }
 
@@ -1060,12 +1143,48 @@ void toggleFullscreen() {
     InvalidateRect(g_app.window, nullptr, FALSE);
 }
 
+void initializeTournament() {
+    const std::size_t variant = static_cast<std::size_t>(GetTickCount64() & 3);
+    g_app.activeLadder = kTournamentLadders[variant];
+    g_app.ladderIndex = 0;
+    g_app.continues = 5;
+    g_app.realmTransportPending = false;
+    g_app.realmMatchActive = false;
+    g_app.realmReturnWinner = -1;
+    g_app.selectedCharacters[1] = g_app.activeLadder[0];
+}
+
+void showCpuLadder() {
+    g_app.selectedCharacters[1] =
+        g_app.activeLadder[static_cast<std::size_t>(g_app.ladderIndex)];
+    g_app.screen = Screen::versusKode;
+    g_app.currentMusic = nullptr;
+    g_app.musicPosition = 0.0;
+    stopAllEffects();
+    playEffect(g_app.ladderSound, 1.0f);
+    invalidate();
+}
+
+void showGameOver() {
+    g_app.realmTransportPending = false;
+    g_app.realmMatchActive = false;
+    g_app.realmReturnWinner = -1;
+    g_app.screen = Screen::gameOver;
+    g_app.currentMusic = nullptr;
+    g_app.musicPosition = 0.0;
+    stopAllEffects();
+    const std::size_t cue = static_cast<std::size_t>((GetTickCount64() >> 4) & 1);
+    playEffect(g_app.gameOverSounds[cue], 1.0f);
+    invalidate();
+}
+
 void activateTitleSelection() {
     playEffect(g_app.menuSelectSound);
     switch (g_app.titleSelection) {
         case 0:
             g_app.playerCount = 1;
             g_app.selectingPlayer = 0;
+            initializeTournament();
             g_app.screen = Screen::characterSelect;
             break;
         case 1:
@@ -1119,6 +1238,74 @@ void beginMatch() {
     g_app.screen = Screen::match;
     playMatchMusic();
     invalidate();
+}
+
+void showContinuePrompt() {
+    g_app.continueCountdown = 9;
+    g_app.continueCountdownTicks = 0;
+    g_app.screen = Screen::continuePrompt;
+    invalidate();
+}
+
+void acceptContinue() {
+    if (g_app.continues <= 0) {
+        showGameOver();
+        return;
+    }
+    --g_app.continues;
+    beginMatch();
+}
+
+void advanceAfterMatch() {
+    if (g_app.playerCount != 1) {
+        g_app.screen = Screen::title;
+        playTitleMusic();
+        invalidate();
+        return;
+    }
+    if (g_app.realmMatchActive) {
+        const bool realmVictory = g_app.roundWinner == 0;
+        const int returnWinner = g_app.realmReturnWinner;
+        g_app.realmMatchActive = false;
+        g_app.realmTransportPending = false;
+        g_app.realmReturnWinner = -1;
+        if (!realmVictory) {
+            showGameOver();
+            return;
+        }
+        // Winning the forced fighter-number-7 encounter returns to the normal
+        // ladder result without consuming an additional battle position.
+        if (returnWinner == 0) {
+            if (++g_app.ladderIndex >= static_cast<int>(g_app.activeLadder.size())) {
+                showGameOver();
+            } else {
+                showCpuLadder();
+            }
+        } else {
+            g_app.selectedCharacters[1] =
+                g_app.activeLadder[static_cast<std::size_t>(g_app.ladderIndex)];
+            showContinuePrompt();
+        }
+        return;
+    }
+    if (g_app.realmTransportPending) {
+        // 0x0041507C forces original fighter number 7 (zero-based index 6)
+        // into a one-player match before normal ladder bookkeeping resumes.
+        g_app.realmReturnWinner = g_app.roundWinner;
+        g_app.realmMatchActive = true;
+        g_app.selectedCharacters[1] = 6;
+        beginMatch();
+        return;
+    }
+    if (g_app.roundWinner == 0) {
+        if (++g_app.ladderIndex >= static_cast<int>(g_app.activeLadder.size())) {
+            showGameOver();
+        } else {
+            showCpuLadder();
+        }
+    } else {
+        showContinuePrompt();
+    }
 }
 
 bool handleSecretShortcut() {
@@ -1199,7 +1386,7 @@ void pollGamepads() {
 }
 
 void postGamepadMenuInput() {
-    if (g_app.screen == Screen::match) return;
+    if (g_app.screen == Screen::match && g_app.matchPhase != MatchPhase::matchResult) return;
     for (std::size_t pad = 0; pad < XUSER_MAX_COUNT; ++pad) {
         if (!g_app.gamepadConnected[pad]) continue;
         if (gamepadButtonPressed(pad, XINPUT_GAMEPAD_DPAD_UP)) PostMessageW(g_app.window, WM_KEYDOWN, VK_UP, 0);
@@ -1400,16 +1587,32 @@ void processCombatButton(int player, CombatButton button) {
         if (!recipeMatches(player, recipe)) continue;
         size = 0;
         g_app.comboTimeout[player] = 0;
-        if (recipe.component < 0) {
+        if (recipe.realmTransport) {
+            // 0x00408248 is not the fatality activator. It is a guarded
+            // one-player secret: full version, arena number 2, then
+            // SUPER, SUPER, TURBO, TURBO. The original records a pending
+            // transport and later forces fighter number 7 as the opponent.
+            if (player == 0 && g_app.playerCount == 1 &&
+                g_app.matchPhase == MatchPhase::playing && !g_app.roundIntroActive &&
+                g_app.allContentUnlocked && g_app.matchStage == 1 &&
+                !g_app.realmTransportPending && !g_app.realmMatchActive) {
+                g_app.realmTransportPending = true;
+                g_app.animationTicks[0] = 48;
+                g_app.animationFrame[0] = 12;
+                playEffect(g_app.realmTransportSound, 1.0f);
+            }
+        } else if (recipe.component > 0) {
             if (g_app.matchPhase == MatchPhase::finishPrompt &&
-                g_app.roundWinner == player && g_app.allContentUnlocked) {
+                g_app.roundWinner == player) {
+                launchComponent(player, recipe.component);
                 g_app.fatalityPerformed = true;
                 g_app.matchPhase = MatchPhase::matchResult;
                 g_app.matchPhaseTicks = 0;
                 playEffect(g_app.fatalitySound, 1.0f);
+            } else if (g_app.matchPhase == MatchPhase::playing &&
+                       !g_app.roundIntroActive) {
+                launchComponent(player, recipe.component);
             }
-        } else if (g_app.matchPhase == MatchPhase::playing && !g_app.roundIntroActive) {
-            launchComponent(player, recipe.component);
         }
         return;
     }
@@ -1623,9 +1826,10 @@ void updateMatch() {
                 beginRound(serveDirection);
             }
         } else if (g_app.matchPhase == MatchPhase::finishPrompt) {
-            // The stock game restores the winner's recognizer during this
-            // prompt. Feed it the same five button events so the exact
-            // SUPER, SUPER, TURBO, TURBO fatality sequence remains required.
+            // The stock game keeps the winner's component recognizer live
+            // during the prompt. A completed ordinary component recipe is a
+            // manual finisher; the shared realm-transport recipe remains
+            // subject to its separate one-player/arena/full-version guards.
             if (g_app.roundWinner >= 0) {
                 for (int input = 0; input < 5; ++input) {
                     const auto button = static_cast<CombatButton>(input);
@@ -1636,6 +1840,14 @@ void updateMatch() {
             }
             if (g_app.matchPhase == MatchPhase::finishPrompt &&
                 g_app.matchPhaseTicks >= 140) {
+                // 0x004144BF uses a 50% fallback and, when selected, activates
+                // component 1 or 2 for the winner before result processing.
+                if ((GetTickCount64() & 1) != 0 && g_app.roundWinner >= 0) {
+                    const int component = 1 + static_cast<int>((GetTickCount64() >> 1) & 1);
+                    launchComponent(g_app.roundWinner, component);
+                    g_app.fatalityPerformed = true;
+                    playEffect(g_app.fatalitySound, 1.0f);
+                }
                 g_app.matchPhase = MatchPhase::matchResult;
                 g_app.matchPhaseTicks = 0;
             }
@@ -1889,7 +2101,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                         g_app.screen = Screen::versusKode;
                         invalidate();
                     } else {
-                        beginMatch();
+                        showCpuLadder();
                     }
                     return 0;
                 }
@@ -1913,7 +2125,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 }
                 if (wParam == VK_ESCAPE) {
                     g_app.screen = Screen::characterSelect;
-                    g_app.selectingPlayer = 1;
+                    g_app.selectingPlayer = g_app.playerCount == 2 ? 1 : 0;
+                    playTitleMusic();
                     invalidate();
                     return 0;
                 }
@@ -1921,9 +2134,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 if (!(lParam & (1LL << 30)) && handleKeyboardCombatKey(wParam)) return 0;
                 if ((wParam == VK_RETURN || wParam == VK_SPACE) &&
                     g_app.matchPhase == MatchPhase::matchResult) {
-                    g_app.screen = Screen::title;
-                    playTitleMusic();
-                    invalidate();
+                    advanceAfterMatch();
                     return 0;
                 }
                 if (wParam == VK_ESCAPE) {
@@ -2000,6 +2211,23 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 g_app.screen = Screen::title;
                 invalidate();
                 return 0;
+            } else if (g_app.screen == Screen::continuePrompt) {
+                if (wParam == VK_RETURN || wParam == VK_SPACE ||
+                    wParam == '1' || wParam == '2' || wParam == '3' ||
+                    wParam == '4' || wParam == '5') {
+                    acceptContinue();
+                    return 0;
+                }
+                if (wParam == VK_ESCAPE) {
+                    showGameOver();
+                    return 0;
+                }
+            } else if (g_app.screen == Screen::gameOver &&
+                       (wParam == VK_RETURN || wParam == VK_SPACE || wParam == VK_ESCAPE)) {
+                g_app.screen = Screen::title;
+                playTitleMusic();
+                invalidate();
+                return 0;
             }
             if (wParam == VK_ESCAPE && g_app.screen == Screen::title) {
                 PostMessageW(window, WM_CLOSE, 0, 0);
@@ -2009,7 +2237,15 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         case WM_TIMER:
             pollGamepads();
             postGamepadMenuInput();
-            updateMatch();
+            if (g_app.screen == Screen::continuePrompt) {
+                if (++g_app.continueCountdownTicks >= 40) {
+                    g_app.continueCountdownTicks = 0;
+                    if (--g_app.continueCountdown < 0) showGameOver();
+                    else invalidate();
+                }
+            } else {
+                updateMatch();
+            }
             return 0;
         case MM_WOM_DONE:
             refillAudioBuffer(reinterpret_cast<WAVEHDR*>(lParam));
@@ -2087,6 +2323,9 @@ void destroyResources() {
     if (g_app.creditsBackdrop.handle) DeleteObject(g_app.creditsBackdrop.handle);
     if (g_app.selectBackdrop.handle) DeleteObject(g_app.selectBackdrop.handle);
     if (g_app.versusBackdrop.handle) DeleteObject(g_app.versusBackdrop.handle);
+    if (g_app.mysteryPortrait.handle) DeleteObject(g_app.mysteryPortrait.handle);
+    if (g_app.continuePanel.handle) DeleteObject(g_app.continuePanel.handle);
+    for (auto& digit : g_app.continueDigits) if (digit.handle) DeleteObject(digit.handle);
     for (auto& backdrop : g_app.matchBackdrops) if (backdrop.handle) DeleteObject(backdrop.handle);
     if (g_app.configBanner.handle) DeleteObject(g_app.configBanner.handle);
     for (auto& portrait : g_app.portraits) if (portrait.handle) DeleteObject(portrait.handle);
@@ -2136,6 +2375,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
     g_app.matchBackdrops[2] = loadOriginalBitmap(instance, 1001, 130);
     g_app.selectBackdrop = loadOriginalBitmap(instance, 2007, 302);
     g_app.versusBackdrop = loadOriginalBitmap(instance, 2007, 304);
+    g_app.mysteryPortrait = loadOriginalBitmap(instance, 2007, 2000);
+    g_app.continuePanel = loadOriginalBitmap(instance, 2007, 300);
+    for (std::size_t digit = 0; digit < g_app.continueDigits.size(); ++digit) {
+        g_app.continueDigits[digit] =
+            loadOriginalBitmap(instance, 2007, 400 + static_cast<int>(digit));
+    }
     g_app.configBanner = loadOriginalBitmap(instance, 2007, 303);
     for (int index = 0; index < 16; ++index) {
         g_app.portraits[index] = loadOriginalBitmap(instance, 2007, 1000 + index);
@@ -2185,6 +2430,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
     g_app.fatalitySprite = loadOriginalSprite(instance, 2023, 250);
     g_app.titleMusic = loadOriginalVoc(instance, 8000);
     g_app.matchMusic = loadOriginalVoc(instance, 8005);
+    g_app.ladderSound = loadOriginalVoc(instance, 8004);
+    g_app.gameOverSounds = {loadOriginalVoc(instance, 5002),
+                            loadOriginalVoc(instance, 5003)};
     for (std::size_t index = 0; index < g_app.fighterVoices.size(); ++index) {
         g_app.fighterVoices[index] = loadOriginalVoc(instance, kFighterVoiceIds[index]);
     }
@@ -2198,6 +2446,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
     g_app.finishHimSound = loadOriginalVoc(instance, 1005);
     g_app.finishHerSound = loadOriginalVoc(instance, 1006);
     g_app.fatalitySound = loadOriginalVoc(instance, 250);
+    g_app.realmTransportSound = loadOriginalVoc(instance, 5001);
     g_app.projectileAlternateSound = loadOriginalVoc(instance, 3028);
     g_app.projectileSecondarySound = loadOriginalVoc(instance, 3011);
     g_app.ballBounceSound = loadOriginalVoc(instance, 500);

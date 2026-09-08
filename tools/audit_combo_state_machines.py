@@ -3,7 +3,8 @@
 
 The supplied executable is never launched.  Its mapped bytes are interpreted in
 an isolated Unicorn x86 VM with only a synthetic fighter/input structure. Calls
-that would activate a component or fatality are intercepted and recorded.
+that would activate a component or the guarded secret-realm transport are
+intercepted and recorded.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ FIGHTERS = [
 ]
 
 COMPONENT_ACTIVATOR = 0x4081E8
-FATALITY_ACTIVATOR = 0x408248
+SECRET_REALM_ACTIVATOR = 0x408248
 OBJECT = 0x100000
 OPPONENT = 0x102000
 INPUT = 0x104000
@@ -81,8 +82,8 @@ class RecognizerVm:
             esp = self.vm.reg_read(UC_X86_REG_ESP)
             self.actions.append({"kind": "component", "index": get32(self.vm, esp + 8)})
             self._return_from_intercepted_call()
-        elif address == FATALITY_ACTIVATOR:
-            self.actions.append({"kind": "fatality"})
+        elif address == SECRET_REALM_ACTIVATOR:
+            self.actions.append({"kind": "realm_transport"})
             self._return_from_intercepted_call()
 
     def transition(self, function: int, state: int, button: str) -> tuple[int, list[dict[str, int | str]]]:
@@ -157,7 +158,8 @@ def main() -> None:
     ]
     for item in result:
         for recipe in item["recipes"]:
-            outcome = "Fatality" if recipe["kind"] == "fatality" else f"Component {recipe['index']}"
+            outcome = ("Secret-realm transport" if recipe["kind"] == "realm_transport"
+                       else f"Component {recipe['index']}")
             sequence = " → ".join(str(button) for button in recipe["sequence"])
             markdown.append(f"| {item['fighter']} | {outcome} | `{sequence}` |")
     markdown_path = args.output.with_name("COMBO_RECIPES.md")

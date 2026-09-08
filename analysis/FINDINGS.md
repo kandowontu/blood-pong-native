@@ -85,8 +85,11 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   that numerically ordered art banks correspond to roster order.
 - `COMBO_RECIPES.md` records all 59 accepting input paths recovered by
   deterministic emulation of the 16 original recognizers: 43 component moves
-  and 16 fatalities. Each recognizer uses the original 60-update input window;
-  every fatality accepts `SUPER, SUPER, TURBO, TURBO`.
+  and 16 paths to the same guarded secret-realm routine. Each recognizer uses
+  the original 60-update input window. `SUPER, SUPER, TURBO, TURBO` calls
+  `0x00408248`, which succeeds only in one-player mode, with the full-version
+  byte set, on original arena number 2. It records the transport flag and later
+  forces original fighter number 7; it is not itself a fatality activator.
 - Fighter health initializes to `0xBA` (186) at `0x0040D310`; the super field is
   capped at `0x9A` (154), including at `0x0040CC40`. The native meters use these
   original ranges. The adjacent `+0x100` field initializes to `0x3A` (58) and is
@@ -119,6 +122,18 @@ not spoof `555-555` or mislabel a versus modifier as the unlock sequence.
   path at two wins. `0x004143C4` selects FINISH HER for fighter numbers 3, 10,
   and 16; `0x00414484` drives the 28-stage/140-update prompt. The native match
   state follows that structure and uses the exact type-2023 frames.
+- At the end of the FINISH prompt, `0x00414484` has a 50% fallback that activates
+  winner component 1 or 2. An ordinary component recipe entered by the winner
+  during the prompt also enters the fatality result path. The separate type-2023
+  ID 250 graphic spells `FATALITY`; it is not evidence that the guarded
+  `0x00408248` realm routine is a fatality.
+- `0x004027A8` writes four alternative one-player ladders of nine opponents.
+  The fifth slot is always original fighter number 10 and the ninth is always
+  number 6. The native tournament view uses type-2007 ID 302 at the exact
+  recovered portrait coordinates; its continue path uses panel ID 300 and
+  digit IDs 400-409 with five initial credits and the original 40-update
+  countdown cadence. `0x00416B8C` supplies the GAME OVER path and random
+  5002/5003 cue.
 - The native presenter never clears the live window. It scales the completed
   640×480 frame and its letterbox bars into a persistent client-sized buffer,
   then performs one final `BitBlt`; `WM_ERASEBKGND` remains suppressed. The game

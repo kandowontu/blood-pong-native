@@ -11,7 +11,8 @@
       "fight": 1004,
       "finishHim": 1005,
       "finishHer": 1006,
-      "fatality": 250
+      "fatality": 250,
+      "realmTransport": 5001
     },
     "ui": {
       "move": 3001,

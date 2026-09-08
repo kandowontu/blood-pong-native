@@ -29,9 +29,11 @@ state using the original 186/154 ranges; animated fighter damage frames; fighter
 projectile banks and all 49 constructor-defined components recovered from the
 original type switch; fullscreen; and the context-sensitive secret shortcut.
 The exact original keyboard layout (three attacks, Turbo and Super), all 59
-recovered character move/fatality recipes, the original HUD/name resources, the
+recovered character move/secret-realm recipes, the original HUD/name resources, the
 59-stage ROUND/FIGHT presentation, two-round match flow, and the 28-stage
-FINISH HIM/HER sequence are also active. Presentation uses a persistent scaled
+FINISH HIM/HER sequence and guarded fatality path are also active. One-player
+mode uses the four recovered nine-battle ladders, the original KONTINUE panel
+and countdown, and the original GAME OVER cues. Presentation uses a persistent scaled
 backbuffer with a single final window copy, eliminating the live black clear
 that caused flicker. The gameplay/class-method audit is still being used to
 replace provisional movement timing and the most specialized secondary
@@ -49,6 +51,7 @@ cmake --build build-msvc --config Release
 python tools/verify_embedded_resources.py analysis/extracted/manifest.json "build-msvc/bin/Blood Pong.exe"
 python tools/check_presentation_stability.py "build-msvc/bin/Blood Pong.exe"
 python tools/audit_audio_resources.py analysis/extracted/type_2001_custom_2001 analysis/disassembly/AUDIO_RESOURCES.json analysis/disassembly/AUDIO_RESOURCES.md
+python tools/audit_combo_state_machines.py "analysis/originals/Blood Pong/Blood Pong.exe" analysis/disassembly/combo_recipes.json
 ```
 
 The final executable imports only standard Windows system libraries

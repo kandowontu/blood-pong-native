@@ -42,7 +42,7 @@ def main() -> None:
     parser.add_argument("output", type=Path)
     parser.add_argument(
         "--screen",
-        choices=("title", "credits", "select", "kode", "unlock", "fight", "match", "projectile", "cheat", "configuration"),
+        choices=("title", "credits", "select", "ladder", "kode", "unlock", "fight", "match", "projectile", "cheat", "configuration"),
         default="credits",
     )
     args = parser.parse_args()
@@ -76,8 +76,10 @@ def main() -> None:
         for _ in range(2):
             user32.SendMessageW(window, 0x0100, 0x28, 0)
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
-    elif args.screen in ("select", "fight", "match", "projectile", "cheat"):
+    elif args.screen in ("select", "ladder", "fight", "match", "projectile", "cheat"):
         user32.SendMessageW(window, 0x0100, 0x0D, 0)
+        if args.screen in ("ladder", "fight", "match", "projectile", "cheat"):
+            user32.SendMessageW(window, 0x0100, 0x0D, 0)
         if args.screen in ("fight", "match", "projectile", "cheat"):
             user32.SendMessageW(window, 0x0100, 0x0D, 0)
         if args.screen in ("projectile", "cheat"):
