@@ -1,0 +1,13 @@
+#include "resource.h"
+
+IDB_TITLE BITMAP "../analysis/extracted/type_2007_custom_2007/301_lang0.bmp"
+IDB_CREDITS_BACKDROP BITMAP "../analysis/extracted/type_1001_custom_1001/130_lang0.bmp"
+
+IDB_MENU_ONE_SELECTED BITMAP "../analysis/extracted/type_2007_custom_2007/500_lang0.bmp"
+IDB_MENU_TWO_SELECTED BITMAP "../analysis/extracted/type_2007_custom_2007/501_lang0.bmp"
+IDB_MENU_CONFIG_SELECTED BITMAP "../analysis/extracted/type_2007_custom_2007/502_lang0.bmp"
+IDB_MENU_QUIT_SELECTED BITMAP "../analysis/extracted/type_2007_custom_2007/503_lang0.bmp"
+IDB_MENU_ONE BITMAP "../analysis/extracted/type_2007_custom_2007/510_lang0.bmp"
+IDB_MENU_TWO BITMAP "../analysis/extracted/type_2007_custom_2007/511_lang0.bmp"
+IDB_MENU_CONFIG BITMAP "../analysis/extracted/type_2007_custom_2007/512_lang0.bmp"
+IDB_MENU_QUIT BITMAP "../analysis/extracted/type_2007_custom_2007/513_lang0.bmp"

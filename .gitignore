@@ -1,0 +1,10 @@
+analysis/originals/
+analysis/extracted/
+analysis/decoded/
+build/
+build-*/
+dist/
+src/generated_resources.rc
+*.user
+*.suo
+*.log
