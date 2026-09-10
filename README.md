@@ -2,6 +2,8 @@
 
 Version 1.0.0 · [Download the current Windows release](https://github.com/kandowontu/blood-pong-native/releases/latest)
 
+Player guide: **[Complete movelist for all 16 characters](MOVELIST.md)**
+
 This is a clean native Windows reconstruction of the 1998/1999 Monkey Byte Development release of **Blood Pong**, programmed and illustrated by Brandon Kuroda. The finished program will be one self-contained Windows GUI executable: no original executable, compatibility layer, installer, or loose runtime assets.
 
 ## Required compatibility behavior

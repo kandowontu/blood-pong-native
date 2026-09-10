@@ -7,6 +7,7 @@ loose assets, or separately installed C/C++ runtime.
 
 ## Highlights
 
+- [Complete movelist for all 16 characters](https://github.com/kandowontu/blood-pong-native/blob/main/MOVELIST.md), covering every recovered player recipe, Super effect, and finisher rule.
 - Original 640×480 presentation, all 16 fighters, three arenas, graphics,
   voices, music, projectiles, combos, fatalities, versus kodes, tournament
   ladders, secret realm, and post-match sequencing.

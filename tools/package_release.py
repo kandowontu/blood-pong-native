@@ -49,6 +49,7 @@ def main() -> None:
         archive_entry(archive, "Blood Pong.exe", standalone.read_bytes())
         archive_entry(archive, "README.md", (root / "README.md").read_bytes())
         archive_entry(archive, "CREDITS.md", (root / "CREDITS.md").read_bytes())
+        archive_entry(archive, "MOVELIST.md", (root / "MOVELIST.md").read_bytes())
         archive_entry(
             archive, "RELEASE_NOTES.md", (root / "RELEASE_NOTES.md").read_bytes()
         )
